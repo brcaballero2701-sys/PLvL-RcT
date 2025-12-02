@@ -6,7 +6,7 @@ FROM php:8.3-apache
 RUN apt-get update && apt-get install -y \
     zip unzip curl git \
     libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-    libonig-dev libxml2-dev libxml2-dev libzip-dev \
+    libonig-dev libxml2-dev libzip-dev \
     libpq-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip \
@@ -24,7 +24,7 @@ RUN a2enmod rewrite
 RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf /etc/apache2/sites-available/000-default.conf
 
 # -----------------------------
-# 4) Apuntar Apache a /public (FIX 403)
+# 4) Apuntar Apache a /public + permitir .htaccess
 # -----------------------------
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
@@ -32,7 +32,6 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf
 
-# Asegurar que .htaccess funcione en public/
 RUN printf '<Directory /var/www/html/public>\n\
     AllowOverride All\n\
     Require all granted\n\
@@ -46,7 +45,7 @@ WORKDIR /var/www/html
 COPY . .
 
 # -----------------------------
-# 6) Copiar Composer
+# 6) Instalar Composer
 # -----------------------------
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -56,18 +55,22 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # -----------------------------
-# 8) Permisos
+# 8) Permisos correctos
 # -----------------------------
-RUN chown -R www-data:www-data storage bootstrap/cache
+RUN chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
 # -----------------------------
-# 9) Cache (si falla, continuar)
+# 9) NO cachear en build (se hace en runtime)
 # -----------------------------
-RUN php artisan config:cache || true
-RUN php artisan route:cache || true
+# OJO: NO pongas config:cache ni route:cache aquí
+# porque en build no existen las env reales de Render
 
 EXPOSE 8080
 
+# -----------------------------
+# 10) Arranque
+# -----------------------------
 CMD ["apache2-foreground"]
 
 
