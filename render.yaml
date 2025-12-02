@@ -4,10 +4,45 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
+
+    buildCommand: ""
+    startCommand: ""
+
     envVars:
       - key: APP_ENV
         value: production
+
+      - key: APP_DEBUG
+        value: false
+
       - key: APP_KEY
         generateValue: true
+
       - key: LOG_LEVEL
-        value: debug
+        value: info
+
+      - key: DB_CONNECTION
+        value: pgsql
+
+      # Las siguientes vienen de la base de datos de Render
+      - key: DB_HOST
+        fromDatabase: mydb
+      - key: DB_PORT
+        value: 5432
+      - key: DB_DATABASE
+        fromDatabase: mydb
+      - key: DB_USERNAME
+        fromDatabase: mydb
+      - key: DB_PASSWORD
+        fromDatabase: mydb
+
+      # SMTP (si usas TurboSMTP)
+      - key: MAIL_USERNAME
+        value: 35a58dde70175d6813c9
+      - key: MAIL_PASSWORD
+        value: 5UwfgoMhx1Feq8GkdLbZ
+
+    # Ejecutar migraciones después del deploy
+    postDeploy:
+      - php artisan migrate --force
+      - php artisan storage:link || true
