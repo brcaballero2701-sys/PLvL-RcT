@@ -1,30 +1,42 @@
-# Imagen base con PHP + Nginx + Opcache
-FROM dunglas/frankenphp:1.1-php8.2
+# Etapa 1: construir React (Vite)
+FROM node:18 AS build-frontend
 
-# Establecer directorio de trabajo
 WORKDIR /app
 
-# Instalar Node y npm
-RUN apk add --no-cache nodejs npm
-
-# Copiar el proyecto
-COPY . .
-
-# Instalar dependencias de backend
-RUN composer install --no-dev --optimize-autoloader
-
-# Instalar dependencias de frontend
+COPY package*.json ./
 RUN npm install
 
-# Compilar React/Vite
+COPY . .
 RUN npm run build
 
-# Cache de Laravel
-RUN php artisan config:cache
-RUN php artisan route:cache
 
-# Exponer el puerto (Render usará $PORT)
-EXPOSE 8080
+# Etapa 2: Laravel con PHP 8.2 + Apache
+FROM php:8.2-apache
 
-# Iniciar Laravel con FrankenPHP
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8080"]
+# Instalar extensiones necesarias
+RUN apt-get update && apt-get install -y \
+    zip unzip curl git \
+    libpng-dev libonig-dev libxml2-dev \
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
+
+# Habilitar mod_rewrite
+RUN a2enmod rewrite
+
+WORKDIR /var/www/html
+
+# Copiar Laravel
+COPY . .
+
+# Copiar build de React dentro de Laravel/public
+COPY --from=build-frontend /app/dist ./public
+
+# Copiar Composer e instalar dependencias
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+RUN composer install --no-dev --optimize-autoloader
+
+# Permisos
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+EXPOSE 80
+
+CMD ["apache2-foreground"]
