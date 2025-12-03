@@ -73,14 +73,11 @@ return [
             'replace_placeholders' => true,
         ],
 
-        'slack' => [
-            'driver' => 'slack',
-            'url' => env('LOG_SLACK_WEBHOOK_URL'),
-            'username' => env('LOG_SLACK_USERNAME', 'Laravel Log'),
-            'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
-            'level' => env('LOG_LEVEL', 'critical'),
-            'replace_placeholders' => true,
-        ],
+        'stack' => [
+  'driver' => 'stack',
+  'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+]
+,
 
         'papertrail' => [
             'driver' => 'monolog',
