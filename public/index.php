@@ -4,7 +4,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
-echo "PROD TEST 123<br>";
 
 // Determine if the application is in maintenance mode...
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
@@ -21,7 +20,7 @@ $app = require_once __DIR__.'/../bootstrap/app.php';
 try {
     $app->handleRequest(Request::capture());
 } catch (Throwable $e) {
-    // FORZAR que Render Free vea el error real
+    // Forzar que Render Free vea el error real
     error_log("=== LARAVEL BOOT ERROR ===");
     error_log($e->__toString());
 
@@ -30,3 +29,4 @@ try {
     echo htmlspecialchars($e->__toString());
     echo "</pre>";
 }
+
