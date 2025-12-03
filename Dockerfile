@@ -62,6 +62,20 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# -----------------------------
+# 9.5) Enviar errores PHP a stderr (para Render Free)
+# -----------------------------
+RUN { \
+    echo "display_errors=On"; \
+    echo "display_startup_errors=On"; \
+    echo "log_errors=On"; \
+    echo "error_reporting=E_ALL"; \
+    echo "error_log=/dev/stderr"; \
+} > /usr/local/etc/php/conf.d/render-errors.ini
+
+
+
 EXPOSE 8080
 
 CMD ["apache2-foreground"]
+
