@@ -61,10 +61,11 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 # -----------------------------
-# 9) NO cachear en build (se hace en runtime)
+# 9) IMPORTANTE:
+# NO hacer php artisan config:cache / route:cache / view:cache aquí
+# porque en build Render NO ha inyectado env vars aún.
+# Eso se limpia/cacha en postDeploy en render.yaml.
 # -----------------------------
-# OJO: NO pongas config:cache ni route:cache aquí
-# porque en build no existen las env reales de Render
 
 EXPOSE 8080
 
