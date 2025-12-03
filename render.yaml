@@ -15,6 +15,10 @@ services:
       - key: APP_DEBUG
         value: true
 
+      - key: LOG_STACK
+        value: single,stderr
+
+      
       - key: APP_KEY
         generateValue: true
 
@@ -59,5 +63,6 @@ services:
       - php artisan cache:clear
       - php artisan migrate --force
       - php artisan storage:link || true
+
 
 
