@@ -24,5 +24,21 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+
+        // ✅ TEMPORAL: forzar que cualquier error salga en pantalla y stderr
+        $exceptions->render(function (Throwable $e, $request) {
+
+            // Esto manda el error a los Runtime Logs de Render
+            error_log("=== LARAVEL EXCEPTION (Render Free) ===");
+            error_log($e->__toString());
+
+            // Esto lo muestra en el navegador
+            return response(
+                "<pre style='white-space:pre-wrap;font-size:14px'>"
+                . htmlspecialchars($e->__toString())
+                . "</pre>",
+                500
+            );
+        });
+
     })->create();
