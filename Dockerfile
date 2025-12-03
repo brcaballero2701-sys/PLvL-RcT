@@ -1,4 +1,4 @@
-FROM php:8.3-apache
+FROM php:8.4-apache
 
 # -----------------------------
 # 1) Dependencias del sistema + extensiones PHP
@@ -21,10 +21,12 @@ RUN a2enmod rewrite
 # -----------------------------
 # 3) Render usa puerto 8080
 # -----------------------------
-RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf /etc/apache2/sites-available/000-default.conf
+RUN sed -i 's/80/8080/g' \
+    /etc/apache2/ports.conf \
+    /etc/apache2/sites-available/000-default.conf
 
 # -----------------------------
-# 4) Apuntar Apache a /public + permitir .htaccess
+# 4) DocumentRoot = /public
 # -----------------------------
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
@@ -32,10 +34,10 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf
 
-RUN printf '<Directory /var/www/html/public>\n\
+RUN printf "<Directory /var/www/html/public>\n\
     AllowOverride All\n\
     Require all granted\n\
-</Directory>\n' > /etc/apache2/conf-available/laravel.conf \
+</Directory>\n" > /etc/apache2/conf-available/laravel.conf \
     && a2enconf laravel
 
 # -----------------------------
@@ -60,18 +62,6 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# -----------------------------
-# 9) IMPORTANTE:
-# NO hacer php artisan config:cache / route:cache / view:cache aquí
-# porque en build Render NO ha inyectado env vars aún.
-# Eso se limpia/cacha en postDeploy en render.yaml.
-# -----------------------------
-
 EXPOSE 8080
 
-# -----------------------------
-# 10) Arranque
-# -----------------------------
 CMD ["apache2-foreground"]
-
-
