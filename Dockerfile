@@ -63,7 +63,7 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 # -----------------------------
-# 9.5) Enviar errores PHP a stderr (para Render Free)
+# 9.5) Enviar errores PHP a stderr (Render Free)
 # -----------------------------
 RUN { \
     echo "display_errors=On"; \
@@ -73,7 +73,11 @@ RUN { \
     echo "error_log=/dev/stderr"; \
 } > /usr/local/etc/php/conf.d/render-errors.ini
 
-
+# -----------------------------
+# 9.6) Enviar logs de Apache a stdout/stderr (Render Free)
+# -----------------------------
+RUN ln -sf /dev/stderr /var/log/apache2/error.log \
+ && ln -sf /dev/stdout /var/log/apache2/access.log
 
 EXPOSE 8080
 
