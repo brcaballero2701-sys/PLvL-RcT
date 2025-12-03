@@ -24,7 +24,11 @@ services:
       - key: DB_CONNECTION
         value: pgsql
 
-      # Las siguientes vienen de la base de datos de Render
+      # ✅ Render recomienda que uses UNA sola variable con la URL interna
+      - key: DATABASE_URL
+        fromDatabase: mydb
+
+      # ✅ Puedes dejar estas también (no estorban)
       - key: DB_HOST
         fromDatabase: mydb
       - key: DB_PORT
@@ -36,13 +40,20 @@ services:
       - key: DB_PASSWORD
         fromDatabase: mydb
 
+      # 🔧 Temporal: evita que sesiones dependan de DB mientras validas
+      - key: SESSION_DRIVER
+        value: file
+
       # SMTP (si usas TurboSMTP)
       - key: MAIL_USERNAME
         value: 35a58dde70175d6813c9
       - key: MAIL_PASSWORD
         value: 5UwfgoMhx1Feq8GkdLbZ
 
-    # Ejecutar migraciones después del deploy
+    # ✅ Forzar a Laravel a releer env vars reales en runtime
     postDeploy:
+      - php artisan config:clear
+      - php artisan cache:clear
       - php artisan migrate --force
       - php artisan storage:link || true
+
