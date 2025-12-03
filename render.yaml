@@ -14,7 +14,10 @@ services:
 
       - key: APP_DEBUG
         value: true
+    - key: SESSION_DRIVER
+        value: file
 
+  
       - key: LOG_STACK
         value: single,stderr
 
@@ -63,6 +66,7 @@ services:
       - php artisan cache:clear
       - php artisan migrate --force
       - php artisan storage:link || true
+
 
 
 
