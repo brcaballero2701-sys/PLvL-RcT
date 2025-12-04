@@ -5,66 +5,29 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
 
-    buildCommand: ""
-    startCommand: ""
-
     envVars:
       - key: APP_ENV
         value: production
-
       - key: APP_DEBUG
         value: true
-  
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromDatabase: mydb
+      - key: SESSION_DRIVER
+        value: file
       - key: LOG_STACK
         value: single,stderr
-
-      
+      - key: LOG_LEVEL
+        value: debug
+      - key: LOG_CHANNEL
+        value: stderr
       - key: APP_KEY
         generateValue: true
 
-      - key: LOG_LEVEL
-        value: debug
-
-        - key: LOG_CHANNEL
-          value: stderr
-
-      - key: DB_CONNECTION
-        value: pgsql
-
-      # ✅ Render recomienda que uses UNA sola variable con la URL interna
-      - key: DATABASE_URL
-        fromDatabase: mydb
-
-      # ✅ Puedes dejar estas también (no estorban)
-      - key: DB_HOST
-        fromDatabase: mydb
-      - key: DB_PORT
-        value: 5432
-      - key: DB_DATABASE
-        fromDatabase: mydb
-      - key: DB_USERNAME
-        fromDatabase: mydb
-      - key: DB_PASSWORD
-        fromDatabase: mydb
-
-      # 🔧 Temporal: evita que sesiones dependan de DB mientras validas
-      - key: SESSION_DRIVER
-        value: file
-
-      # SMTP (si usas TurboSMTP)
-      - key: MAIL_USERNAME
-        value: 35a58dde70175d6813c9
-      - key: MAIL_PASSWORD
-        value: 5UwfgoMhx1Feq8GkdLbZ
-
-    # ✅ Forzar a Laravel a releer env vars reales en runtime
     postDeploy:
       - php artisan config:clear
       - php artisan cache:clear
       - php artisan migrate --force
-      - php artisan storage:link || true
-
-
-
 
 
