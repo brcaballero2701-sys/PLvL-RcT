@@ -8,18 +8,23 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('sessions', function (Blueprint $table) {
+        // ✅ Si ya existe, no hacer nada (evita error en Render)
+        if (Schema::hasTable('sesiones')) {
+            return;
+        }
+
+        Schema::create('sesiones', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
-            $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
-            $table->longText('payload');
-            $table->integer('last_activity')->index();
+            $table->foreignId('id_usuario')->nullable()->index();
+            $table->string('dirección_ip', 45)->nullable();
+            $table->text('agente_usuario')->nullable();
+            $table->longText('carga útil');
+            $table->integer('última_actividad')->index();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('sessions');
+        Schema::dropIfExists('sesiones');
     }
 };
