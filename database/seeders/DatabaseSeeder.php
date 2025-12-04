@@ -23,6 +23,6 @@ class DatabaseSeeder extends Seeder
         ]);
         
         // Crear usuarios adicionales de prueba
-        User::factory(3)->create();
+       // User::factory(3)->create();
     }
 }
