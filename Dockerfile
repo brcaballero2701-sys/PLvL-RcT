@@ -1,8 +1,5 @@
 FROM php:8.4-apache
 
-# -----------------------------
-# 1) Dependencias del sistema + extensiones PHP
-# -----------------------------
 RUN apt-get update && apt-get install -y \
     zip unzip curl git \
     libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
@@ -13,21 +10,12 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# -----------------------------
-# 2) Habilitar mod_rewrite
-# -----------------------------
 RUN a2enmod rewrite
 
-# -----------------------------
-# 3) Render usa puerto 8080
-# -----------------------------
 RUN sed -i 's/80/8080/g' \
     /etc/apache2/ports.conf \
     /etc/apache2/sites-available/000-default.conf
 
-# -----------------------------
-# 4) DocumentRoot = /public
-# -----------------------------
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
@@ -40,31 +28,16 @@ RUN printf "<Directory /var/www/html/public>\n\
 </Directory>\n" > /etc/apache2/conf-available/laravel.conf \
     && a2enconf laravel
 
-# -----------------------------
-# 5) Copiar proyecto
-# -----------------------------
 WORKDIR /var/www/html
 COPY . .
 
-# -----------------------------
-# 6) Instalar Composer
-# -----------------------------
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# -----------------------------
-# 7) Instalar dependencias Laravel
-# -----------------------------
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# -----------------------------
-# 8) Permisos correctos
-# -----------------------------
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# -----------------------------
-# 9.5) Enviar errores PHP a stderr (Render Free)
-# -----------------------------
 RUN { \
     echo "display_errors=On"; \
     echo "display_startup_errors=On"; \
@@ -73,13 +46,9 @@ RUN { \
     echo "error_log=/dev/stderr"; \
 } > /usr/local/etc/php/conf.d/render-errors.ini
 
-# -----------------------------
-# 9.6) Enviar logs de Apache a stdout/stderr (Render Free)
-# -----------------------------
-RUN ln -sf /dev/stderr /var/log/apache2/error.log \
- && ln -sf /dev/stdout /var/log/apache2/access.log
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
 EXPOSE 8080
 
-CMD ["apache2-foreground"]
-
+CMD ["/start.sh"]
