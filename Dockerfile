@@ -62,5 +62,35 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # 7) Dependencias PHP Laravel
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# ✅ 7B) COPIAR assets compilados
+# ✅ 7B) COPIAR assets compilados DESDE el stage nodebuild
+# Esto mete /public/build con manifest.json ya creado
+COPY --from=nodebuild /app/public/build /var/www/html/public/build
+
+# 8) Permisos de build (igual los dejamos)
+RUN chown -R www-data:www-data storage bootstrap/cache public/build \
+    && chmod -R 775 storage bootstrap/cache public/build
+
+# 9) Enviar errores PHP a stderr
+RUN { \
+    echo "display_errors=On"; \
+    echo "display_startup_errors=On"; \
+    echo "log_errors=On"; \
+    echo "error_reporting=E_ALL"; \
+    echo "error_log=/dev/stderr"; \
+} > /usr/local/etc/php/conf.d/render-errors.ini
+
+# ✅ 10) Entrypoint para permisos EN RUNTIME (Render lo necesita)
+# ---- crea el archivo docker/entrypoint.sh en tu repo con este contenido ----
+# #!/usr/bin/env sh
+# set -e
+# mkdir -p storage/framework/{cache,data,sessions,views}
+# mkdir -p bootstrap/cache
+# chown -R www-data:www-data storage bootstrap/cache
+# chmod -R 775 storage bootstrap/cache
+# exec apache2-foreground
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 8080
+CMD ["/usr/local/bin/entrypoint.sh"]
 
