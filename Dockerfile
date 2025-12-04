@@ -92,5 +92,10 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 8080
-CMD ["/usr/local/bin/entrypoint.sh"]
+# Copiar y habilitar start.sh
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+CMD ["/start.sh"]
+
 
