@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-echo "=== Clearing caches ==="
-php artisan optimize:clear || true
+echo "==> Running migrations + seed..."
+php artisan migrate --force --seed
 
-echo "=== Running migrations ==="
-php artisan migrate --force --database=pgsql
+echo "==> Caching config/routes/views..."
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 
-echo "=== Linking storage ==="
-php artisan storage:link || true
-
-echo "=== Starting Apache ==="
-exec apache2-foreground
+echo "==> Starting Apache..."
+apache2-foreground
