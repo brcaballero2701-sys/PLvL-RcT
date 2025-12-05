@@ -40,6 +40,9 @@ RUN mkdir -p database && \
     chmod 666 database/database.sqlite && \
     chown www-data:www-data database/database.sqlite
 
+# Ejecutar migraciones para crear las tablas
+RUN php artisan migrate --force || true
+
 # Cache de Laravel (si falla no detiene el build)
 RUN php artisan config:cache || true
 RUN php artisan route:cache || true
