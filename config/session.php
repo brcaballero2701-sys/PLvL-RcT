@@ -8,7 +8,7 @@ return [
 
     'expire_on_close' => false,
 
-    'encrypt' => (bool) env('SESSION_ENCRYPT', false),
+    'encrypt' => false,
 
     'files' => storage_path('framework/sessions'),
 
@@ -22,11 +22,11 @@ return [
 
     'cookie' => [
         'name' => 'laravel_session',
-        'path' => env('SESSION_PATH', '/'),
-        'domain' => env('SESSION_DOMAIN') === 'null' ? null : env('SESSION_DOMAIN', null),
-        'secure' => (bool) env('SESSION_SECURE', false),
+        'path' => '/',
+        'domain' => null,
+        'secure' => false,
         'http_only' => true,
-        'same_site' => env('SESSION_SAME_SITE', 'lax'),
+        'same_site' => 'lax',
     ],
 
 ];
