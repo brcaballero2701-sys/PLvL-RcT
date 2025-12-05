@@ -1,8 +1,8 @@
 FROM php:8.4-apache
 
-# Instalar extensiones necesarias
+# Instalar extensiones necesarias y Node.js
 RUN apt-get update && apt-get install -y \
-    zip unzip curl git libpng-dev libonig-dev libxml2-dev libzip-dev libsodium-dev \
+    zip unzip curl git libpng-dev libonig-dev libxml2-dev libzip-dev libsodium-dev nodejs npm \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip sodium
 
 # Habilitar mod_rewrite
@@ -21,6 +21,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Instalar dependencias de Laravel
 RUN composer install --no-dev --optimize-autoloader
+
+# Instalar dependencias de Node.js y compilar assets
+RUN npm install && npm run build
 
 # Generar clave de aplicación si no existe
 RUN if [ ! -f .env ]; then cp .env.example .env; fi
@@ -46,6 +49,9 @@ RUN php artisan migrate --force || true
 # Cache de Laravel (si falla no detiene el build)
 RUN php artisan config:cache || true
 RUN php artisan route:cache || true
+
+# Limpiar npm cache para reducir tamaño de la imagen
+RUN npm cache clean --force && rm -rf node_modules
 
 EXPOSE 8080
 
