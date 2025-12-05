@@ -21,13 +21,10 @@ return [
     'lottery' => [2, 100],
 
     'cookie' => [
-        'name' => env(
-            'SESSION_COOKIE',
-            Illuminate\Support\Str::slug(env('APP_NAME', 'Laravel'), '_').'_session'
-        ),
+        'name' => 'sena_session',
         'path' => '/',
-        'domain' => env('SESSION_DOMAIN', null),
-        'secure' => env('SESSION_SECURE_COOKIES', false),
+        'domain' => null,
+        'secure' => false,
         'http_only' => true,
         'same_site' => 'lax',
         'partitioned' => false,
