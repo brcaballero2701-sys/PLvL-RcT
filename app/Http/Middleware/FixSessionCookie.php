@@ -14,7 +14,7 @@ class FixSessionCookie extends StartSession
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle($request, Closure $next)
     {
         // Asegurar que config('session.cookie.name') sea siempre un string
         $cookieName = config('session.cookie.name', 'laravel_session');
