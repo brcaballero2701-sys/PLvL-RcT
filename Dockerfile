@@ -47,6 +47,9 @@ RUN mkdir -p database && \
 # Ejecutar migraciones para crear las tablas
 RUN php artisan migrate --force || true
 
+# Limpiar cualquier caché de configuración anterior
+RUN rm -f bootstrap/cache/config.php || true
+
 # Ejecutar seeders para crear usuarios y datos de prueba
 RUN php artisan db:seed --class=AdminUserSeeder --force || true
 RUN php artisan db:seed --class=SystemSettingSeeder --force || true
