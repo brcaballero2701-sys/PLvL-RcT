@@ -11,7 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [
+        $middleware->web(prepend: [
+            \App\Http\Middleware\FixSessionCookie::class,
+        ], append: [
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\LoadSystemSettings::class,
