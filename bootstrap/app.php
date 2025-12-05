@@ -11,13 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Remover el middleware de sesión defectuoso
-        $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\StartSession::class);
+        // NO remover el middleware de sesión estándar - es necesario para CSRF
+        // $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\StartSession::class);
         
-        // Agregar nuestro middleware personalizado ANTES de otros middlewares
-        $middleware->web(prepend: [
-            \App\Http\Middleware\FixSessionCookie::class,
-        ], append: [
+        // Agregar middlewares personalizados
+        $middleware->web(append: [
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\LoadSystemSettings::class,
