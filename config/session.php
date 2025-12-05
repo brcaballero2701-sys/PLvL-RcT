@@ -2,13 +2,13 @@
 
 return [
 
-    'driver' => 'array',
+    'driver' => env('SESSION_DRIVER', 'cookie'),
 
-    'lifetime' => 120,
+    'lifetime' => env('SESSION_LIFETIME', 120),
 
     'expire_on_close' => false,
 
-    'encrypt' => false,
+    'encrypt' => true,
 
     'files' => storage_path('framework/sessions'),
 
@@ -21,12 +21,12 @@ return [
     'lottery' => [2, 100],
 
     'cookie' => [
-        'name' => 'laravel_session',
+        'name' => env('SESSION_COOKIE', 'XSRF-TOKEN'),
         'path' => '/',
-        'domain' => null,
-        'secure' => false,
+        'domain' => env('SESSION_DOMAIN'),
+        'secure' => env('SESSION_SECURE_COOKIES', false),
         'http_only' => true,
-        'same_site' => 'lax',
+        'same_site' => env('SESSION_SAME_SITE', 'lax'),
     ],
 
 ];
