@@ -2,8 +2,8 @@ FROM php:8.2-apache
 
 # Instalar extensiones necesarias
 RUN apt-get update && apt-get install -y \
-    zip unzip curl git libpng-dev libonig-dev libxml2-dev \
-    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
+    zip unzip curl git libpng-dev libonig-dev libxml2-dev libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip sodium
 
 # Habilitar mod_rewrite
 RUN a2enmod rewrite
