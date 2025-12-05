@@ -11,18 +11,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Deshabilitar el middleware de sesión que causa el error
         $middleware->web(prepend: [
             \App\Http\Middleware\FixSessionCookie::class,
+            \Illuminate\Session\Middleware\StartSession::class,
         ], append: [
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\LoadSystemSettings::class,
         ]);
-
-        // Remover el middleware de sesión por defecto
-        $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\StartSession::class);
-        $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\AuthenticateSession::class);
 
         // Registrar middleware personalizado
         $middleware->alias([

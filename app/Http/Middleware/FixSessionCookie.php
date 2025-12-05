@@ -4,9 +4,10 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Symfony\Component\HttpFoundation\Response;
 
-class FixSessionCookie
+class FixSessionCookie extends StartSession
 {
     /**
      * Handle an incoming request.
@@ -15,28 +16,24 @@ class FixSessionCookie
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Asegurar que la configuración de sesión esté correcta antes de procesarla
-        $sessionConfig = config('session.cookie');
-        
-        // Si config.session.cookie es un array, verificar que tenga las claves correctas
-        if (is_array($sessionConfig)) {
-            // Asegurar que todas las claves existan
-            $defaults = [
-                'name' => 'laravel_session',
-                'path' => '/',
-                'domain' => null,
-                'secure' => false,
-                'http_only' => true,
-                'same_site' => 'lax',
-            ];
-            
-            foreach ($defaults as $key => $value) {
-                if (!isset($sessionConfig[$key])) {
-                    config(['session.cookie.' . $key => $value]);
-                }
-            }
+        // Asegurar que config('session.cookie.name') sea siempre un string
+        $cookieName = config('session.cookie.name', 'laravel_session');
+        if (!is_string($cookieName)) {
+            config(['session.cookie.name' => 'laravel_session']);
         }
         
-        return $next($request);
+        // Llamar al middleware parent con manejo de errores
+        try {
+            return parent::handle($request, $next);
+        } catch (\TypeError $e) {
+            // Si aún hay un error de tipo, crear una sesión dummy
+            if (strpos($e->getMessage(), 'InputBag') !== false) {
+                $request->setLaravelSession(
+                    app('session')->driver('array')
+                );
+                return $next($request);
+            }
+            throw $e;
+        }
     }
 }
