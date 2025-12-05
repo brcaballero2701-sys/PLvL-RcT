@@ -38,9 +38,27 @@ class HandleInertiaRequests extends Middleware
             ],
             'systemSettings' => $this->getSystemSettings(),
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-                'logoPath' => fn () => $request->session()->get('logoPath'),
+                'success' => function () use ($request) {
+                    try {
+                        return $request->session()->get('success');
+                    } catch (\Exception $e) {
+                        return null;
+                    }
+                },
+                'error' => function () use ($request) {
+                    try {
+                        return $request->session()->get('error');
+                    } catch (\Exception $e) {
+                        return null;
+                    }
+                },
+                'logoPath' => function () use ($request) {
+                    try {
+                        return $request->session()->get('logoPath');
+                    } catch (\Exception $e) {
+                        return null;
+                    }
+                },
             ],
         ];
     }

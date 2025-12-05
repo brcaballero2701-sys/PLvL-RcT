@@ -2,7 +2,7 @@
 
 return [
 
-    'driver' => 'file',
+    'driver' => 'array',
 
     'lifetime' => 120,
 
