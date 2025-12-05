@@ -37,11 +37,12 @@ RUN mkdir -p storage/logs storage/app storage/framework/cache storage/framework/
     touch storage/logs/laravel.log && \
     chmod 666 storage/logs/laravel.log
 
-# Crear base de datos SQLite si no existe
+# Crear base de datos SQLite con permisos correctos
 RUN mkdir -p database && \
     touch database/database.sqlite && \
+    chmod 777 database && \
     chmod 666 database/database.sqlite && \
-    chown www-data:www-data database/database.sqlite
+    chown -R www-data:www-data database
 
 # Ejecutar migraciones para crear las tablas
 RUN php artisan migrate --force || true
