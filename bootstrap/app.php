@@ -11,9 +11,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Remover el middleware de sesión defectuoso
+        $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\StartSession::class);
+        
+        // Agregar nuestro middleware personalizado ANTES de otros middlewares
         $middleware->web(prepend: [
             \App\Http\Middleware\FixSessionCookie::class,
-            \Illuminate\Session\Middleware\StartSession::class,
         ], append: [
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
