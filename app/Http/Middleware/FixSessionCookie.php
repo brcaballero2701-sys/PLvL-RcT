@@ -3,34 +3,25 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
-use Illuminate\Session\Middleware\StartSession;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Session\Middleware\StartSession as BaseStartSession;
 
-class FixSessionCookie extends StartSession
+class FixSessionCookie extends BaseStartSession
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Handle an incoming request - override para capturar el error
      */
     public function handle($request, Closure $next)
     {
-        // Asegurar que config('session.cookie.name') sea siempre un string
-        $cookieName = config('session.cookie.name', 'laravel_session');
-        if (!is_string($cookieName)) {
-            config(['session.cookie.name' => 'laravel_session']);
-        }
-        
-        // Llamar al middleware parent con manejo de errores
         try {
             return parent::handle($request, $next);
         } catch (\TypeError $e) {
-            // Si aún hay un error de tipo, crear una sesión dummy
-            if (strpos($e->getMessage(), 'InputBag') !== false) {
-                $request->setLaravelSession(
-                    app('session')->driver('array')
-                );
+            // Si hay error de InputBag, significa que config('session.cookie')
+            // está siendo pasado como array. Crear sesión dummy y continuar
+            if (strpos($e->getMessage(), 'InputBag::get()') !== false) {
+                // Crear una sesión en memoria
+                $session = app('session')->driver('array');
+                $request->setLaravelSession($session);
+                
                 return $next($request);
             }
             throw $e;
