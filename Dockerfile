@@ -22,8 +22,14 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Instalar dependencias de Laravel
 RUN composer install --no-dev --optimize-autoloader
 
-# Permisos
-RUN chown -R www-data:www-data storage bootstrap/cache
+# Generar clave de aplicación si no existe
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
+RUN php artisan key:generate --force || true
+
+# Permisos - Permitir escritura recursiva en storage y bootstrap
+RUN chmod -R 775 storage bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache && \
+    chown -R www-data:www-data .env || true
 
 # Cache de Laravel (si falla no detiene el build)
 RUN php artisan config:cache || true
