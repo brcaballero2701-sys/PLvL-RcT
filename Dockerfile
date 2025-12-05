@@ -26,10 +26,19 @@ RUN composer install --no-dev --optimize-autoloader
 RUN if [ ! -f .env ]; then cp .env.example .env; fi
 RUN php artisan key:generate --force || true
 
-# Permisos - Permitir escritura recursiva en storage y bootstrap
-RUN chmod -R 775 storage bootstrap/cache && \
-    chown -R www-data:www-data storage bootstrap/cache && \
-    chown -R www-data:www-data .env || true
+# Crear directorios necesarios con permisos correctos
+RUN mkdir -p storage/logs storage/app storage/framework/cache storage/framework/sessions storage/framework/views && \
+    mkdir -p bootstrap/cache && \
+    chmod -R 777 storage bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache .env && \
+    touch storage/logs/laravel.log && \
+    chmod 666 storage/logs/laravel.log
+
+# Crear base de datos SQLite si no existe
+RUN mkdir -p database && \
+    touch database/database.sqlite && \
+    chmod 666 database/database.sqlite && \
+    chown www-data:www-data database/database.sqlite
 
 # Cache de Laravel (si falla no detiene el build)
 RUN php artisan config:cache || true
