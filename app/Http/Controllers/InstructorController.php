@@ -98,10 +98,13 @@ class InstructorController extends Controller
     /**
      * Mostrar formulario para editar instructor
      */
-    public function edit(Instructor $instructor)
+    public function edit($id)
     {
-        // Validar que el instructor existe
-        if (!$instructor || !$instructor->id) {
+        // Buscar el instructor por ID
+        $instructor = Instructor::find($id);
+        
+        // Si no existe, redirigir a la lista con un mensaje de error
+        if (!$instructor) {
             return redirect()->route('admin.instructores.index')
                             ->with('error', 'Instructor no encontrado.');
         }
