@@ -3,28 +3,56 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Session\Middleware\StartSession as BaseStartSession;
+use Illuminate\Contracts\Session\Session;
 
-class FixSessionCookie extends BaseStartSession
+class FixSessionCookie
 {
     /**
-     * Handle an incoming request - override para capturar el error
+     * Handle an incoming request - implementación manual de sesión
      */
     public function handle($request, Closure $next)
     {
-        try {
-            return parent::handle($request, $next);
-        } catch (\TypeError $e) {
-            // Si hay error de InputBag, significa que config('session.cookie')
-            // está siendo pasado como array. Crear sesión dummy y continuar
-            if (strpos($e->getMessage(), 'InputBag::get()') !== false) {
-                // Crear una sesión en memoria
-                $session = app('session')->driver('array');
-                $request->setLaravelSession($session);
-                
-                return $next($request);
+        // Crear una sesión en memoria para evitar el error de StartSession
+        $session = app('session')->driver('array');
+        
+        // Verificar si existe una sesión en la cookie
+        $sessionId = $request->cookies->get('laravel_session');
+        if ($sessionId) {
+            try {
+                // Intentar cargar la sesión existente
+                $session->setId($sessionId);
+            } catch (\Exception $e) {
+                // Si falla, crear una nueva
+                $session->start();
             }
-            throw $e;
+        } else {
+            // Crear nueva sesión
+            $session->start();
         }
+        
+        // Asignar la sesión al request
+        $request->setLaravelSession($session);
+        
+        // Procesar la siguiente parte del middleware
+        $response = $next($request);
+        
+        // Guardar la sesión en la cookie si fue modificada
+        if ($session->isStarted()) {
+            $response->headers->setCookie(
+                cookie(
+                    'laravel_session',
+                    $session->getId(),
+                    config('session.lifetime', 120),
+                    config('session.cookie.path', '/'),
+                    config('session.cookie.domain', null),
+                    config('session.cookie.secure', false),
+                    config('session.cookie.http_only', true),
+                    false,
+                    config('session.cookie.same_site', 'lax')
+                )
+            );
+        }
+        
+        return $response;
     }
 }
