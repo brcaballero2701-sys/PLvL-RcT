@@ -56,8 +56,9 @@ RUN sed -i "s|APP_URL=.*|APP_URL=https://senacrewjdk.onrender.com|g" .env && \
     sed -i "s|APP_ENV=.*|APP_ENV=production|g" .env && \
     sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|g" .env
 
-# Cache de Laravel (si falla no detiene el build)
-RUN php artisan config:cache || true
+# NO cachear configuración - dejar que Laravel la cargue dinámicamente en tiempo de ejecución
+# Esto evita que se cachee una configuración de sesiones incorrecta
+# Solo cachear rutas que no tienen el problema
 RUN php artisan route:cache || true
 
 # Limpiar npm cache para reducir tamaño de la imagen
