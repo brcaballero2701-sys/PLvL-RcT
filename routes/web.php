@@ -9,7 +9,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\Admin\AdminUserController;
-
 // Ruta de diagnóstico simple (sin React)
 Route::get('/test', function () {
     return response('<h1>✅ Laravel está funcionando correctamente</h1><p>Si ves este mensaje, el servidor Laravel funciona.</p><a href="/login">Ir al Login</a>');
@@ -75,15 +74,8 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     
     // Personalización
     Route::post('/configuraciones/personalizacion', [\App\Http\Controllers\ConfigurationController::class, 'updateCustomization'])->name('configuraciones.personalizacion');
-
-    // 👇 FIX: nombres únicos para evitar choque con /personalizacion/*
-    Route::post('/configuraciones/upload-logo', [\App\Http\Controllers\ConfigurationController::class, 'uploadLogo'])
-        ->name('configuraciones.upload-logo-legacy');
-
-    Route::post('/configuraciones/reset-logo', [\App\Http\Controllers\ConfigurationController::class, 'resetLogo'])
-        ->name('configuraciones.reset-logo-legacy');
-
-    // Estas ya tenían nombres propios y correctos
+    Route::post('/configuraciones/upload-logo', [\App\Http\Controllers\ConfigurationController::class, 'uploadLogo'])->name('customization.upload-logo');
+    Route::post('/configuraciones/reset-logo', [\App\Http\Controllers\ConfigurationController::class, 'resetLogo'])->name('customization.reset');
     Route::post('/configuraciones/logo', [\App\Http\Controllers\ConfigurationController::class, 'uploadLogo'])->name('configuraciones.logo');
     Route::post('/configuraciones/logo/reset', [\App\Http\Controllers\ConfigurationController::class, 'resetLogo'])->name('configuraciones.logo.reset');
     
@@ -178,4 +170,3 @@ Route::prefix('guardia')->middleware(['auth', 'guardia'])->name('guardia.')->gro
 
 // Rutas de autenticación
 require __DIR__.'/auth.php';
-

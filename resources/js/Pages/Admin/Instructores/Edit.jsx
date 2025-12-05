@@ -4,6 +4,23 @@ import { ArrowLeft, Save, X } from 'lucide-react';
 import SidebarLayout from '@/Layouts/SidebarLayout';
 
 export default function Edit({ instructor }) {
+    // Validar que el instructor existe y tiene ID
+    if (!instructor || !instructor.id) {
+        return (
+            <SidebarLayout title="Error - SENA">
+                <div className="p-8">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                        <h2 className="text-xl font-bold text-red-800 mb-2">Instructor no encontrado</h2>
+                        <p className="text-red-700 mb-4">El instructor que intentas editar no existe o el ID es inválido.</p>
+                        <Link href="/admin/instructores" className="text-red-600 hover:text-red-800 underline">
+                            Volver a la lista de instructores
+                        </Link>
+                    </div>
+                </div>
+            </SidebarLayout>
+        );
+    }
+
     const { data, setData, put, processing, errors } = useForm({
         nombres: instructor.nombres || '',
         apellidos: instructor.apellidos || '',

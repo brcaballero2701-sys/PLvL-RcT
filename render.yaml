@@ -4,29 +4,10 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
-
     envVars:
       - key: APP_ENV
         value: production
-      - key: APP_DEBUG
-        value: true
-      - key: DB_CONNECTION
-        value: pgsql
-      - key: DATABASE_URL
-        fromDatabase: mydb
-      - key: SESSION_DRIVER
-        value: file
-      - key: LOG_STACK
-        value: single,stderr
-      - key: LOG_LEVEL
-        value: debug
-      - key: LOG_CHANNEL
-        value: stderr
       - key: APP_KEY
         generateValue: true
-
-    postDeploy:
-      - php artisan config:clear
-      - php artisan cache:clear
-      - php artisan migrate --force
-
+      - key: LOG_LEVEL
+        value: debug

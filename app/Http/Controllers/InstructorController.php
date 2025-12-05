@@ -100,6 +100,12 @@ class InstructorController extends Controller
      */
     public function edit(Instructor $instructor)
     {
+        // Validar que el instructor existe
+        if (!$instructor || !$instructor->id) {
+            return redirect()->route('admin.instructores.index')
+                            ->with('error', 'Instructor no encontrado.');
+        }
+        
         return Inertia::render('Admin/Instructores/Edit', [
             'instructor' => $instructor
         ]);
