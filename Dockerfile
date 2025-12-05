@@ -47,7 +47,7 @@ RUN mkdir -p database && \
 # Ejecutar migraciones para crear las tablas
 RUN php artisan migrate --force || true
 
-# Limpiar cualquier cach� de configuraci�n anterior
+# Limpiar cualquier caché de configuración anterior
 RUN rm -f bootstrap/cache/config.php || true
 
 # Ejecutar seeders para crear usuarios y datos de prueba
@@ -59,10 +59,13 @@ RUN sed -i "s|APP_URL=.*|APP_URL=https://senacrewjdk.onrender.com|g" .env && \
     sed -i "s|APP_ENV=.*|APP_ENV=production|g" .env && \
     sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|g" .env
 
-# NO cachear configuración - dejar que Laravel la cargue dinámicamente en tiempo de ejecución
-# Esto evita que se cachee una configuración de sesiones incorrecta
-# Solo cachear rutas que no tienen el problema
-RUN php artisan route:cache || true
+# LIMPIAR TODO EL CACHÉ DE LARAVEL - esto es crítico
+RUN rm -rf bootstrap/cache/*.php || true
+RUN rm -rf storage/framework/cache/* || true
+RUN rm -rf storage/framework/sessions/* || true
+
+# NO cachear configuración ni rutas - dejar que Laravel cargue todo dinámicamente
+# Esto evita problemas con caché corrupto de sesiones
 
 # Limpiar npm cache para reducir tamaño de la imagen
 RUN npm cache clean --force && rm -rf node_modules
