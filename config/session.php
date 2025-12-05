@@ -2,9 +2,9 @@
 
 return [
 
-    'driver' => env('SESSION_DRIVER', 'database'),
+    'driver' => 'file',
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    'lifetime' => 120,
 
     'expire_on_close' => false,
 
