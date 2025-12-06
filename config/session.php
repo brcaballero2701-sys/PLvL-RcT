@@ -1,17 +1,17 @@
 <?php
 
 return [
-    'driver' => 'cookie',
+    'driver' => 'file',
     'lifetime' => 120,
     'expire_on_close' => false,
-    'encrypt' => true,
+    'encrypt' => false,
     'files' => storage_path('framework/sessions'),
     'connection' => null,
     'table' => 'sessions',
     'store' => null,
     'lottery' => [2, 100],
     'cookie' => [
-        'name' => 'laravel_session',
+        'name' => 'LARAVEL_SESSION',
         'path' => '/',
         'domain' => null,
         'secure' => false,
