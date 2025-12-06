@@ -1,5 +1,8 @@
 FROM php:8.4-apache
 
+# FORCE REBUILD: 2025-12-05-v2
+# Forzar rebuild completo para limpiar caché corrupto de Render
+
 # Instalar extensiones necesarias y Node.js
 RUN apt-get update && apt-get install -y \
     zip unzip curl git libpng-dev libonig-dev libxml2-dev libzip-dev libsodium-dev nodejs npm postgresql-client libpq-dev \
