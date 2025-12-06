@@ -11,8 +11,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // NO remover el middleware de sesión estándar - es necesario para CSRF
-        // $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\StartSession::class);
+        // Remover el middleware de sesión que está causando el error de array
+        $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\StartSession::class);
         
         // Agregar middlewares personalizados
         $middleware->web(append: [
