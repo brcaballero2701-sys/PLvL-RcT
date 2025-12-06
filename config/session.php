@@ -11,7 +11,7 @@ return [
     'store' => null,
     'lottery' => [2, 100],
     'cookie' => [
-        'name' => 'LARAVEL_SESSION',
+        'name' => 'session_id',
         'path' => '/',
         'domain' => null,
         'secure' => false,

@@ -11,8 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Remover el middleware de sesión que está causando el error de array
-        $middleware->removeFromGroup('web', \Illuminate\Session\Middleware\StartSession::class);
+        // NO remover el middleware de sesión - es necesario para la aplicación
         
         // Agregar middlewares personalizados
         $middleware->web(append: [
