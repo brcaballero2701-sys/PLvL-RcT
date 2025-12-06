@@ -13,6 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // NO remover el middleware de sesión - es necesario para la aplicación
         
+        // ✅ AGREGAR ESTE MIDDLEWARE PRIMERO para corregir configuración de sesión
+        $middleware->web(prepend: [
+            \App\Http\Middleware\FixSessionConfig::class,
+        ]);
+        
         // Agregar middlewares personalizados
         $middleware->web(append: [
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
