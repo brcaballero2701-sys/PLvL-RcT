@@ -19,8 +19,9 @@ class EnsureUserIsGuardia
             return redirect()->route('login');
         }
 
-        if (!auth()->user()->isGuardia()) {
-            abort(403, 'Acceso denegado. Solo los guardias pueden acceder a esta sección.');
+        $user = auth()->user();
+        if (!$user->isGuardia() && !$user->isVigilante()) {
+            abort(403, 'Acceso denegado. Solo los guardias y vigilantes pueden acceder a esta sección.');
         }
 
         return $next($request);
