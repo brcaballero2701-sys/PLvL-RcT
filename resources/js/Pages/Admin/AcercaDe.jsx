@@ -6,27 +6,27 @@ import ThemeButton from '@/Components/ThemeButton';
 export default function AcercaDe({ auth }) {
   const teamMembers = [
     {
-      nombre: 'Equipo de Desarrollo SENA',
-      rol: 'Desarrollo y Arquitectura',
-      descripcion: 'Responsables del diseño e implementación del sistema',
+      nombre: 'Sistema de Gestión de Asistencia SENA',
+      rol: 'Plataforma integral',
+      descripcion: 'Control y monitoreo de asistencia de instructores',
       icon: Code
     },
     {
-      nombre: 'Juan Carlos Rodríguez',
-      rol: 'Líder de Proyecto',
-      descripcion: 'Coordinación general y gestión del proyecto',
+      nombre: 'Yesica Paola Quintero Carrascal',
+      rol: 'Instructora Líder',
+      descripcion: 'Líder del proyecto y supervisión general',
       icon: Users
     },
     {
-      nombre: 'María González López',
-      rol: 'Desarrolladora Frontend',
-      descripcion: 'Interfaz de usuario y experiencia',
-      icon: Globe
+      nombre: 'Kevin Duvan Coronel Caballero',
+      rol: 'Desarrollador 2',
+      descripcion: 'Correo: caballerokevin418@gmail.com | Celular: 3004907439',
+      icon: Code
     },
     {
-      nombre: 'Carlos Andrés Martínez',
-      rol: 'Desarrollador Backend',
-      descripcion: 'Lógica de negocio y base de datos',
+      nombre: 'George Jesus Vera Pallarez',
+      rol: 'Desarrollador 3',
+      descripcion: 'Cédula: 1003257664 | Celular: 3223320275',
       icon: Code
     }
   ];
@@ -132,7 +132,7 @@ export default function AcercaDe({ auth }) {
               { name: 'React', desc: 'Frontend Framework' },
               { name: 'Inertia.js', desc: 'SPA Framework' },
               { name: 'Tailwind CSS', desc: 'CSS Framework' },
-              { name: 'SQLite', desc: 'Database' },
+              { name: 'MySQL', desc: 'Database' },
               { name: 'PHP 8.1+', desc: 'Programming Language' },
               { name: 'JavaScript ES6+', desc: 'Programming Language' },
               { name: 'RESTful API', desc: 'API Architecture' }
