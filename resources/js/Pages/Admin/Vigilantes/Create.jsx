@@ -215,16 +215,8 @@ export default function CreateVigilante({ flash }) {
                                         required
                                     >
                                         <option value="">Seleccionar ubicación</option>
-                                        <option value="Puerta Principal">🚪 Puerta Principal</option>
-                                        <option value="Entrada Lateral">🚪 Entrada Lateral</option>
-                                        <option value="Zona de Parqueadero">🚗 Zona de Parqueadero</option>
+                                        <option value="Entrada Principal">🚪 Entrada Principal</option>
                                         <option value="Entrada Secundaria">🚪 Entrada Secundaria</option>
-                                        <option value="Cafetería">☕ Cafetería</option>
-                                        <option value="Laboratorios">🔬 Laboratorios</option>
-                                        <option value="Biblioteca">📚 Biblioteca</option>
-                                        <option value="Edificio Administrativo">🏢 Edificio Administrativo</option>
-                                        <option value="Talleres">🔧 Talleres</option>
-                                        <option value="Auditorio">🎭 Auditorio</option>
                                     </select>
                                     <InputError message={errors.ubicacion_asignada} className="mt-1" />
                                 </div>

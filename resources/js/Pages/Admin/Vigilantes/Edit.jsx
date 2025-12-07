@@ -26,15 +26,7 @@ export default function Edit({ auth, vigilante, errors }) {
 
     const ubicacionesDisponibles = [
         'Entrada Principal',
-        'Entrada Secundaria',
-        'Parking',
-        'Edificio A',
-        'Edificio B',
-        'Laboratorios',
-        'Biblioteca',
-        'Cafetería',
-        'Auditorio',
-        'Oficinas Administrativas'
+        'Entrada Secundaria'
     ];
 
     return (
