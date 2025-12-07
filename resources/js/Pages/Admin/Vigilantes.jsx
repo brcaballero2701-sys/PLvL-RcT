@@ -157,10 +157,8 @@ export default function Vigilantes({ vigilantes = [], estadisticas = {} }) {
                                 className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                             >
                                 <option value="">Todas las ubicaciones</option>
-                                <option value="puerta principal">Puerta Principal</option>
-                                <option value="puerta secundaria">Puerta Secundaria</option>
-                                <option value="cafetería">Cafetería</option>
-                                <option value="parqueadero">Parqueadero</option>
+                                <option value="entrada principal">Entrada Principal</option>
+                                <option value="entrada secundaria">Entrada Secundaria</option>
                             </select>
                         </div>
                         
