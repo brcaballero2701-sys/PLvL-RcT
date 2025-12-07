@@ -385,7 +385,7 @@ class AdminController extends Controller
         ]);
 
         $validated['password'] = bcrypt($validated['password']);
-        $validated['role'] = 'guardia';
+        $validated['role'] = 'vigilante';
         $validated['email_verified_at'] = now();
 
         User::create($validated);

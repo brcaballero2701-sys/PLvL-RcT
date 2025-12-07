@@ -603,7 +603,7 @@ class AdminController extends Controller
                 'name' => $validated['nombre_completo'],
                 'email' => $validated['correo_electronico'],
                 'password' => bcrypt($validated['password']),
-                'role' => 'guardia',
+                'role' => 'vigilante',
                 'cedula' => $validated['codigo_vigilante'],
                 'telefono' => $validated['telefono'],
                 'ubicacion_asignada' => $validated['ubicacion_asignada'],
