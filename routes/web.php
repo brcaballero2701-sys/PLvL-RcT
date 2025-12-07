@@ -32,6 +32,8 @@ Route::get('/dashboard', function () {
         return redirect()->route('admin.dashboard');
     } elseif ($user && $user->role === 'guardia') {
         return redirect()->route('guardia.dashboard');
+    } elseif ($user && $user->role === 'vigilante') {
+        return redirect()->route('guardia.dashboard');
     }
     
     return Inertia::render('Dashboard');
