@@ -94,6 +94,7 @@ export default function Create({ auth }) {
                                     >
                                         <option value="user">Usuario Regular</option>
                                         <option value="admin">Administrador</option>
+                                        <option value="vigilante">Vigilante</option>
                                     </select>
                                     <InputError message={errors.role} className="mt-2" />
                                     <p className="mt-2 text-sm text-gray-600">
