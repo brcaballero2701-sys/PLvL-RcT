@@ -95,15 +95,35 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user): RedirectResponse
     {
+        \Log::info('Update User Request', [
+            'user_id' => $user->id,
+            'request_data' => $request->all(),
+        ]);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email,' . $user->id,
             'role' => 'required|in:user,admin,vigilante',
         ]);
 
+        \Log::info('Validated Data', $validated);
+
         // Actualizar todos los campos validados
         $user->fill($validated);
+        
+        \Log::info('User before save', [
+            'id' => $user->id,
+            'role' => $user->role,
+            'name' => $user->name,
+        ]);
+        
         $user->save();
+
+        \Log::info('User after save', [
+            'id' => $user->id,
+            'role' => $user->role,
+            'name' => $user->name,
+        ]);
 
         // Actualizar contraseña si se proporciona
         if ($request->filled('password')) {
