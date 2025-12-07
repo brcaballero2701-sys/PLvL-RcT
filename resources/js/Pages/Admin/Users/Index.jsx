@@ -74,6 +74,7 @@ export default function Index({ auth, users, filters }) {
                                             <option value="">Todos los roles</option>
                                             <option value="user">Usuario</option>
                                             <option value="admin">Administrador</option>
+                                            <option value="vigilante">Vigilante</option>
                                         </select>
                                     </div>
                                     <div className="flex space-x-2">
