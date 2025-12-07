@@ -563,18 +563,6 @@ export default function Configuraciones() {
                             <Database className="text-gray-600" size={20} />
                             <span className="text-gray-800 font-medium">Respaldo y Restauración</span>
                         </button>
-
-                        <button
-                            onClick={() => setActiveSection('avanzada')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                                activeSection === 'avanzada' 
-                                    ? 'bg-gray-100 border-2 border-gray-300' 
-                                    : 'hover:bg-gray-50'
-                            }`}
-                        >
-                            <Settings className="text-gray-600" size={20} />
-                            <span className="text-gray-800 font-medium">Configuración Avanzada</span>
-                        </button>
                     </nav>
                 </aside>
 
@@ -1584,108 +1572,6 @@ export default function Configuraciones() {
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Sección Configuración Avanzada */}
-                    {activeSection === 'avanzada' && (
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-800 mb-2">Configuración Avanzada</h2>
-                            <p className="text-gray-600 mb-8">Opciones avanzadas para administradores experimentados</p>
-                            
-                            {/* Opciones avanzadas */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Opciones del Sistema</h3>
-                                
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-700">Modo de depuración</label>
-                                            <p className="text-xs text-gray-500">Mostrar detalles técnicos y errores</p>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                                        </label>
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-700">Registro de auditoría</label>
-                                            <p className="text-xs text-gray-500">Registrar todas las acciones de administrador</p>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" defaultChecked />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                                        </label>
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-700">Caché del sistema</label>
-                                            <p className="text-xs text-gray-500">Activar almacenamiento en caché para mejorar rendimiento</p>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" defaultChecked />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                                        </label>
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-700">Modo mantenimiento</label>
-                                            <p className="text-xs text-gray-500">Desactivar acceso de usuarios mientras se realiza mantenimiento</p>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Acciones peligrosas */}
-                            <div className="bg-red-50 rounded-lg p-6 border border-red-200">
-                                <h3 className="text-lg font-semibold text-red-800 mb-4">Acciones Peligrosas</h3>
-                                <p className="text-sm text-red-700 mb-4">Estas acciones no se pueden deshacer. Úsalas con cuidado.</p>
-                                
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={handleLimpiarCache}
-                                        className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition-colors"
-                                    >
-                                        Limpiar Caché del Sistema
-                                    </button>
-                                    <button
-                                        onClick={handleRestablecerConfig}
-                                        className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
-                                    >
-                                        Restablecer Configuración a Valores Predeterminados
-                                    </button>
-                                    <button
-                                        onClick={handleEliminarDatos}
-                                        className="w-full px-4 py-3 bg-red-800 hover:bg-red-900 text-white font-medium rounded-lg transition-colors"
-                                    >
-                                        Eliminar Todos los Datos (Irreversible)
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Botones de acción */}
-                            <div className="flex gap-4 mt-8">
-                                <button
-                                    onClick={handleGuardarAvanzada}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-                                >
-                                    Guardar Configuración Avanzada
-                                </button>
-                                <button
-                                    onClick={cancelar}
-                                    className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-                                >
-                                    Cancelar
-                                </button>
                             </div>
                         </div>
                     )}

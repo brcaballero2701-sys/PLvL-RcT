@@ -89,12 +89,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::get('/configuraciones/respaldos/{filename}', [\App\Http\Controllers\ConfigurationController::class, 'downloadBackup'])->name('configuraciones.respaldos.descargar');
     Route::delete('/configuraciones/respaldos/{filename}', [\App\Http\Controllers\ConfigurationController::class, 'deleteBackup'])->name('configuraciones.respaldos.eliminar');
     
-    // Configuración Avanzada
-    Route::post('/configuraciones/avanzada', [\App\Http\Controllers\ConfigurationController::class, 'updateAdvancedSettings'])->name('configuraciones.avanzada');
-    Route::post('/configuraciones/limpiar-cache', [\App\Http\Controllers\ConfigurationController::class, 'clearCache'])->name('configuraciones.limpiar-cache');
-    Route::post('/configuraciones/resetear-valores', [\App\Http\Controllers\ConfigurationController::class, 'resetToDefaults'])->name('configuraciones.resetear-valores');
-    Route::post('/configuraciones/eliminar-datos', [\App\Http\Controllers\ConfigurationController::class, 'deleteAllData'])->name('configuraciones.eliminar-datos');
-    
     // Usuarios y Roles
     Route::post('/configuraciones/usuarios', [\App\Http\Controllers\ConfigurationController::class, 'storeUser'])->name('configuraciones.usuarios.store');
     Route::put('/configuraciones/usuarios/{user}', [\App\Http\Controllers\ConfigurationController::class, 'updateUser'])->name('configuraciones.usuarios.update');
