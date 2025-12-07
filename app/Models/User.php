@@ -67,6 +67,11 @@ class User extends Authenticatable
         return $this->role === 'guardia';
     }
 
+    public function isVigilante(): bool
+    {
+        return $this->role === 'vigilante';
+    }
+
     public function asistenciasRegistradas(): HasMany
     {
         return $this->hasMany(Asistencia::class, 'guardia_id');
