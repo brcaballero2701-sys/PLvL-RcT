@@ -143,9 +143,20 @@ export default function Index({ auth, users, filters }) {
                                                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                                         user.role === 'admin' 
                                                             ? 'bg-red-100 text-red-800' 
+                                                            : user.role === 'vigilante'
+                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                            : user.role === 'guardia'
+                                                            ? 'bg-blue-100 text-blue-800'
                                                             : 'bg-green-100 text-green-800'
                                                     }`}>
-                                                        {user.role === 'admin' ? 'Administrador' : 'Usuario'}
+                                                        {user.role === 'admin' 
+                                                            ? 'Administrador' 
+                                                            : user.role === 'vigilante'
+                                                            ? 'Vigilante'
+                                                            : user.role === 'guardia'
+                                                            ? 'Guardia'
+                                                            : 'Usuario Regular'
+                                                        }
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
