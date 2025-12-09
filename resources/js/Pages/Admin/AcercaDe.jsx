@@ -12,13 +12,19 @@ export default function AcercaDe({ auth }) {
       icon: Code
     },
     {
-      nombre: 'Yesica Paola Quintero Carrascal',
+      nombre: 'Yesica Paola Carrascal Quintero',
       rol: 'Instructora Líder',
-      descripcion: 'Líder del proyecto y supervisión general',
+      descripcion: 'Celular: 3112395817',
       icon: Users
     },
     {
-      nombre: 'Kevin Duvan Coronel Caballero',
+      nombre: 'Diego Armando Quintero Contreras',
+      rol: 'Desarrollador 1',
+      descripcion: 'Desarrollador Full Stack',
+      icon: Code
+    },
+    {
+      nombre: 'Kevy Duvan Coronel Caballero',
       rol: 'Desarrollador 2',
       descripcion: 'Correo: caballerokevin418@gmail.com | Celular: 3004907439',
       icon: Code
@@ -26,7 +32,7 @@ export default function AcercaDe({ auth }) {
     {
       nombre: 'George Jesus Vera Pallarez',
       rol: 'Desarrollador 3',
-      descripcion: 'Cédula: 1003257664 | Celular: 3223320275',
+      descripcion: 'Cédula: 1003257664 | Celular: 1003257664',
       icon: Code
     }
   ];

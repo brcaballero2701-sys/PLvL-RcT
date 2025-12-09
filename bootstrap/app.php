@@ -33,14 +33,17 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
 
-        // ✅ TEMPORAL: forzar que cualquier error salga en pantalla y stderr
+        // Dejar que Laravel maneje las excepciones de validación normalmente
         $exceptions->render(function (Throwable $e, $request) {
+            // Si es una excepción de validación, dejar que Laravel la maneje
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                return null; // Permitir que el manejador predeterminado la procese
+            }
 
-            // Esto manda el error a los Runtime Logs de Render
+            // Para otras excepciones, mostrar el error en desarrollo
             error_log("=== LARAVEL EXCEPTION (Render Free) ===");
             error_log($e->__toString());
 
-            // Esto lo muestra en el navegador
             return response(
                 "<pre style='white-space:pre-wrap;font-size:14px'>"
                 . htmlspecialchars($e->__toString())

@@ -191,6 +191,9 @@ class AdminController extends Controller
                 ];
             })->toArray();
 
+        // Obtener lista de respaldos disponibles
+        $backupFiles = $this->getBackupFiles();
+
         // Configuraciones del sistema
         $systemSettings = [
             'system_name' => config('app.name', 'Gestión Instructores SENA'),
@@ -215,6 +218,7 @@ class AdminController extends Controller
             ],
             'asistenciasRecientes' => $asistenciasRecientes,
             'systemSettings' => $systemSettings,
+            'backupFiles' => $backupFiles,
             'debug' => [
                 'fecha_consulta' => $fechaHoy,
                 'total_instructores' => $totalInstructores,
@@ -223,6 +227,62 @@ class AdminController extends Controller
         ];
 
         return Inertia::render('Admin/Configuraciones', $data);
+    }
+
+    /**
+     * Obtener lista de respaldos disponibles
+     */
+    private function getBackupFiles()
+    {
+        $backupPath = storage_path('app/backups');
+        
+        // Crear directorio si no existe
+        if (!is_dir($backupPath)) {
+            @mkdir($backupPath, 0755, true);
+        }
+
+        $files = [];
+        
+        try {
+            if (is_dir($backupPath)) {
+                $filesInDir = array_diff(scandir($backupPath, SCANDIR_SORT_DESCENDING), ['.', '..']);
+                
+                foreach ($filesInDir as $file) {
+                    $filePath = $backupPath . DIRECTORY_SEPARATOR . $file;
+                    
+                    // Solo incluir archivos (no directorios)
+                    if (is_file($filePath)) {
+                        $fileSize = filesize($filePath);
+                        $fileTime = filemtime($filePath);
+                        
+                        $files[] = [
+                            'name' => $file,
+                            'size' => $fileSize,
+                            'size_formatted' => $this->formatFileSize($fileSize),
+                            'date' => \Carbon\Carbon::createFromTimestamp($fileTime)->toIso8601String(),
+                            'date_formatted' => \Carbon\Carbon::createFromTimestamp($fileTime)
+                                ->setTimezone(auth()->user()->timezone ?? config('app.timezone'))
+                                ->format('d/m/Y H:i:s')
+                        ];
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error obteniendo archivos de respaldo: ' . $e->getMessage());
+        }
+
+        return $files;
+    }
+
+    /**
+     * Formatear tamaño de archivo
+     */
+    private function formatFileSize($bytes)
+    {
+        if ($bytes < 1024) return $bytes . ' B';
+        if ($bytes < 1024 * 1024) return number_format($bytes / 1024, 2) . ' KB';
+        if ($bytes < 1024 * 1024 * 1024) return number_format($bytes / (1024 * 1024), 2) . ' MB';
+        return number_format($bytes / (1024 * 1024 * 1024), 2) . ' GB';
     }
 
     /**

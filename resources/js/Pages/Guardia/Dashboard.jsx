@@ -314,7 +314,7 @@ export default function GuardiaDashboard({ auth, instructores = [], registros = 
                 {/* ====== NUEVA SECCIÓN: CONTROL DE PORTÁTILES ====== */}
                 <div className="mt-12 bg-white rounded-xl shadow-lg overflow-hidden">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex items-center gap-3">
+                    <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 flex items-center gap-3">
                         <Laptop size={28} />
                         <h2 className="text-2xl font-bold">Control de Entrada/Salida de Equipos</h2>
                     </div>
@@ -496,16 +496,16 @@ export default function GuardiaDashboard({ auth, instructores = [], registros = 
                         {/* Tabla de registros */}
                         <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-purple-100 border-b-2 border-purple-600">
+                                <thead className="bg-green-100 border-b-2 border-green-600">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">Nombre</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">Tipo</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">Equipo</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">Serial</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">Fecha</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">Hora</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">Estado</th>
-                                        <th className="px-4 py-3 text-center text-sm font-semibold text-purple-900">Acción</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Nombre</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Tipo</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Equipo</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Serial</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Fecha</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Hora</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Estado</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-green-900">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">

@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         // Ejecutar los seeders del sistema de registro de instructores
         $this->call([
             AdminUserSeeder::class,
+            TeamMemberSeeder::class,
             InstructorSeeder::class,
             AsistenciasSeeder::class,
         ]);

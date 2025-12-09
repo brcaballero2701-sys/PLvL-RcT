@@ -21,6 +21,10 @@ class BackupController extends Controller
      */
     public function index()
     {
+        // Obtener información del espacio en disco
+        $diskSpace = $this->getDiskSpace();
+        $databaseSize = $this->getDatabaseSize();
+        
         $stats = [
             'asistencias_count' => Asistencia::count(),
             'instructores_count' => Instructor::count(),
@@ -30,9 +34,11 @@ class BackupController extends Controller
 
         $backups = $this->getBackupHistory();
 
-        return Inertia::render('Admin/Configuraciones/Respaldo', [
+        return Inertia::render('Admin/Configuraciones/RespaldoRestauracion', [
             'stats' => $stats,
-            'backups' => $backups
+            'backups' => $backups,
+            'diskSpace' => $diskSpace,
+            'databaseSize' => $databaseSize
         ]);
     }
 
@@ -193,6 +199,102 @@ class BackupController extends Controller
     }
 
     /**
+     * Confirmar restauración validando contraseña
+     */
+    public function confirmRestorePassword(Request $request)
+    {
+        try {
+            // Validar que la contraseña esté presente
+            if (!$request->has('password')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ La contraseña es requerida'
+                ], 422);
+            }
+
+            $password = $request->input('password');
+            
+            if (empty($password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ La contraseña no puede estar vacía'
+                ], 422);
+            }
+
+            $user = auth()->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ Usuario no autenticado'
+                ], 401);
+            }
+            
+            // Validar contraseña del usuario autenticado
+            if (!\Hash::check($password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ Contraseña incorrecta. Por favor intenta de nuevo.'
+                ], 401);
+            }
+            
+            // Si la contraseña es válida, devolver confirmación
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Contraseña validada correctamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en confirmRestorePassword: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al validar contraseña: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Restaurar base de datos desde archivo subido
+     */
+    public function restoreBackup(Request $request)
+    {
+        $validated = $request->validate([
+            'backup' => 'required|file|mimes:sql,zip,tar|max:524288', // 512MB max
+        ]);
+
+        try {
+            // Crear respaldo de seguridad antes de restaurar
+            $this->createSafetyBackup();
+            
+            // Obtener el archivo
+            $file = $request->file('backup');
+            $content = file_get_contents($file->getRealPath());
+            
+            // Validar que es un archivo SQL válido
+            if (!$this->validateSQLBackup($content)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ El archivo no contiene un respaldo válido'
+                ], 400);
+            }
+            
+            // Ejecutar la restauración
+            $this->executeRestore($content);
+            
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Base de datos restaurada exitosamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error durante la restauración: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
      * Eliminar respaldo
      */
     public function deleteBackup($backup)
@@ -211,6 +313,26 @@ class BackupController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => '❌ Error al eliminar respaldo: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Obtener lista de respaldos en formato JSON
+     */
+    public function listBackups()
+    {
+        try {
+            $backups = $this->getBackupHistory();
+            
+            return response()->json([
+                'success' => true,
+                'files' => $backups
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener lista de respaldos: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -282,9 +404,55 @@ class BackupController extends Controller
     }
 
     /**
-     * Obtener historial de respaldos
+     * Obtener historial de respaldos con formato correcto para frontend
      */
     private function getBackupHistory()
+    {
+        $backups = [];
+        
+        try {
+            $files = Storage::files('backups');
+            
+            foreach ($files as $file) {
+                // Solo incluir archivos SQL que no sean de seguridad
+                if (str_ends_with($file, '.sql') && !str_contains($file, 'safety_backup')) {
+                    $filename = basename($file);
+                    $lastModified = Storage::lastModified($file);
+                    $size = Storage::size($file);
+                    
+                    $backups[] = [
+                        'id' => md5($file),
+                        'name' => $filename,
+                        'filename' => $filename,
+                        'path' => $file,
+                        'size' => $size,
+                        'size_formatted' => $this->formatBytes($size),
+                        'created_at' => Carbon::createFromTimestamp($lastModified)->toIso8601String(),
+                        'date' => Carbon::createFromTimestamp($lastModified)->format('Y-m-d H:i'),
+                        'created_by' => auth()->user()->name ?? 'Sistema',
+                        'type' => str_contains($file, 'completo') ? 'Completo' : 'Parcial',
+                        'status' => 'Exitoso',
+                        'download_url' => route('admin.backup.download', ['backup' => $filename])
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            // Si hay error al leer los archivos, devolver array vacío
+            $backups = [];
+        }
+        
+        // Ordenar por fecha descendente
+        usort($backups, function($a, $b) {
+            return strcmp($b['created_at'], $a['created_at']);
+        });
+        
+        return array_slice($backups, 0, 10); // Últimos 10 respaldos
+    }
+
+    /**
+     * Obtener historial de respaldos
+     */
+    private function getBackupHistoryOld()
     {
         $backups = [];
         $files = Storage::files('backups');
@@ -372,15 +540,24 @@ class BackupController extends Controller
     }
 
     /**
-     * Ejecutar restauración desde archivo
+     * Ejecutar restauración desde archivo o contenido SQL
      */
-    private function executeRestore($backupPath)
+    private function executeRestore($backupPathOrContent)
     {
-        if (!Storage::exists($backupPath)) {
-            throw new \Exception('Archivo de respaldo no encontrado');
+        // Determinar si es una ruta de archivo o contenido directo
+        $content = '';
+        
+        if (Storage::exists($backupPathOrContent)) {
+            // Es una ruta de archivo
+            $content = Storage::get($backupPathOrContent);
+        } else {
+            // Es contenido directo
+            $content = $backupPathOrContent;
         }
         
-        $content = Storage::get($backupPath);
+        if (empty($content)) {
+            throw new \Exception('No hay contenido para restaurar');
+        }
         
         // Dividir en comandos SQL individuales
         $commands = explode(';', $content);
@@ -425,5 +602,52 @@ class BackupController extends Controller
         $base = log($size, 1024);
         $suffixes = ['B', 'KB', 'MB', 'GB'];
         return round(pow(1024, $base - floor($base)), $precision) . ' ' . $suffixes[floor($base)];
+    }
+
+    /**
+     * Obtener información del espacio en disco
+     */
+    private function getDiskSpace()
+    {
+        $free = disk_free_space('/');
+        $total = disk_total_space('/');
+        
+        return [
+            'total' => $total,
+            'total_formatted' => $this->formatBytes($total),
+            'free' => $free,
+            'free_formatted' => $this->formatBytes($free),
+            'used' => $total - $free,
+            'used_formatted' => $this->formatBytes($total - $free),
+            'percentage' => round(($total - $free) / $total * 100, 2)
+        ];
+    }
+
+    /**
+     * Obtener tamaño de la base de datos
+     */
+    private function getDatabaseSize()
+    {
+        try {
+            $database = config('database.connections.mysql.database');
+            
+            $result = DB::select("
+                SELECT SUM(data_length + index_length) as size
+                FROM information_schema.tables
+                WHERE table_schema = ?
+            ", [$database]);
+            
+            $size = $result[0]->size ?? 0;
+            
+            return [
+                'size' => $size,
+                'size_formatted' => $this->formatBytes($size)
+            ];
+        } catch (\Exception $e) {
+            return [
+                'size' => 0,
+                'size_formatted' => '0 B'
+            ];
+        }
     }
 }

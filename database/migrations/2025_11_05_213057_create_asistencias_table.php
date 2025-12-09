@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('guardia_id')->constrained('users')->onDelete('restrict'); // Guardia que registró
             $table->enum('tipo_movimiento', ['entrada', 'salida']);
             $table->datetime('fecha_hora_registro'); // Momento exacto del registro
-            $table->string('codigo_barras_leido'); // Código que se leyó del carné
+            $table->string('codigo_barras_leido')->nullable(); // Código que se leyó del carné
             $table->string('ubicacion')->nullable(); // Ubicación donde se hizo el registro
             $table->boolean('es_tardanza')->default(false); // Si llegó tarde
             $table->boolean('es_salida_anticipada')->default(false); // Si salió antes

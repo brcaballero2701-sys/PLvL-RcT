@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 export default function LogoDisplay({ size = "default", alt = "Logo SENA", className = "", logoPath = null }) {
     const { systemSettings } = usePage().props;
-    const [logoUrl, setLogoUrl] = useState('/images/logo-sena.png');
+    const [logoUrl, setLogoUrl] = useState('/images/sena-logo-new.jpg');
     const [isLoading, setIsLoading] = useState(true);
     
     // Tamaños predefinidos con clases Tailwind responsive
@@ -37,15 +37,15 @@ export default function LogoDisplay({ size = "default", alt = "Logo SENA", class
             setLogoUrl(url);
         } else {
             // Usar el logo del SENA por defecto
-            setLogoUrl('/images/logo-sena.png');
+            setLogoUrl('/images/sena-logo-new.jpg');
         }
         setIsLoading(false);
     }, [logoPath, systemSettings?.logo_path]);
 
     const handleImageError = (e) => {
         console.error('Error al cargar el logo:', e.target.src);
-        // Si falla, intentar con el logo SVG por defecto
-        e.target.src = '/images/sena-logo.svg';
+        // Si falla, intentar con el logo por defecto
+        e.target.src = '/images/sena-logo-new.jpg';
     };
 
     return (

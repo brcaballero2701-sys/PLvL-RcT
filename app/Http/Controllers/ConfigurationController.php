@@ -53,32 +53,41 @@ class ConfigurationController extends Controller
             'ausencias' => Asistencia::whereDate('created_at', $today)->where('estado_registro', 'alerta')->count(),
         ];
 
-        // Asistencias recientes
+        // Asistencias recientes - OBTENER TODAS LAS ASISTENCIAS
         $asistenciasRecientes = Asistencia::with('instructor')
-            ->whereDate('created_at', $today)
             ->orderBy('created_at', 'desc')
-            ->limit(10)
+            ->limit(50)
             ->get()
             ->map(function ($asistencia) {
                 // Determinar estado basado en columnas reales
-                $estado = 'Normal';
+                $estado = 'Presente';
                 if ($asistencia->es_tardanza) {
                     $estado = 'Tarde';
                 } elseif ($asistencia->estado_registro === 'alerta') {
                     $estado = 'Ausencia';
                 } elseif ($asistencia->es_salida_anticipada) {
                     $estado = 'Salida Anticipada';
+                } else {
+                    $estado = 'Puntual';
                 }
 
+                // Obtener hora según tipo de movimiento
+                $hora = $asistencia->fecha_hora_registro 
+                    ? Carbon::parse($asistencia->fecha_hora_registro)->format('H:i') 
+                    : 'N/A';
+
                 return [
-                    'instructor' => $asistencia->instructor->name ?? 'N/A',
-                    'area' => $asistencia->instructor->area ?? 'N/A',
+
+                    'instructor' => $asistencia->instructor->name ?? $asistencia->instructor->nombre_completo ?? 'N/A',
+                    'area' => $asistencia->instructor->area_asignada ?? 'N/A',
                     'fecha' => $asistencia->created_at->format('d/m/Y'),
-                    'entrada' => $asistencia->tipo_movimiento === 'entrada' ? $asistencia->fecha_hora_registro ? Carbon::parse($asistencia->fecha_hora_registro)->format('H:i') : 'N/A' : 'N/A',
-                    'salida' => $asistencia->tipo_movimiento === 'salida' ? $asistencia->fecha_hora_registro ? Carbon::parse($asistencia->fecha_hora_registro)->format('H:i') : 'N/A' : 'N/A',
+                    'entrada' => $asistencia->tipo_movimiento === 'entrada' ? $hora : 'N/A',
+                    'salida' => $asistencia->tipo_movimiento === 'salida' ? $hora : 'N/A',
                     'estado' => $estado,
                 ];
-            });
+            })
+            ->values()
+            ->toArray();
 
         // Configuraciones del sistema
         $systemSettings = [
@@ -111,12 +120,48 @@ class ConfigurationController extends Controller
             'notification_animation' => NotificationSetting::getSetting('animation', 'slide'),
         ];
 
+        // Cargar lista de respaldos
+        $backupFiles = [];
+        $backupPath = storage_path('app/backups');
+        if (is_dir($backupPath)) {
+            $files = array_diff(scandir($backupPath), ['.', '..']);
+            foreach ($files as $file) {
+                $fullPath = $backupPath . '/' . $file;
+                
+                // Saltar directorios
+                if (is_dir($fullPath)) {
+                    continue;
+                }
+                
+                // Incluir archivos que tengan extensión .sql o empiecen con 'backup_'
+                $extension = pathinfo($file, PATHINFO_EXTENSION);
+                $isBackupFile = (
+                    $extension === 'sql' || 
+                    strpos($file, 'backup_') === 0
+                );
+                
+                if ($isBackupFile && is_file($fullPath)) {
+                    $backupFiles[] = [
+                        'name' => $file,
+                        'size' => filesize($fullPath),
+                        'size_formatted' => $this->formatBytes(filesize($fullPath)),
+                        'date' => filemtime($fullPath),
+                        'date_formatted' => date('d/m/Y H:i:s', filemtime($fullPath)),
+                    ];
+                }
+            }
+            
+            // Ordenar por fecha descendente
+            usort($backupFiles, fn($a, $b) => $b['date'] <=> $a['date']);
+        }
+
         return Inertia::render('Admin/Configuraciones', [
             'usuarios' => $usuarios,
             'rolesStats' => $rolesStats,
             'asistenciasStats' => $asistenciasStats,
             'asistenciasRecientes' => $asistenciasRecientes,
-            'systemSettings' => $systemSettings
+            'systemSettings' => $systemSettings,
+            'backupFiles' => $backupFiles
         ]);
     }
 
@@ -258,40 +303,146 @@ class ConfigurationController extends Controller
     // ========== SEGURIDAD Y CONTRASEÑAS ==========
     public function updateSecuritySettings(Request $request)
     {
-        $validated = $request->validate([
-            'password_min_length' => 'required|integer|min:6|max:20',
-            'password_min_length_enabled' => 'boolean',
-            'password_require_mixed_case' => 'boolean',
-            'password_require_numbers' => 'boolean',
-            'password_require_symbols' => 'boolean',
-            'password_mixed_case_enabled' => 'boolean',
-            'two_factor_enabled' => 'boolean',
-            'two_factor_method' => 'string|in:email,sms,app',
-            'auto_lock_enabled' => 'boolean',
-            'auto_lock_attempts' => 'required|integer|min:1|max:10',
-            'password_recovery_enabled' => 'boolean',
-            'password_recovery_method' => 'string|in:email,phone,both',
-            'recovery_code_expiry' => 'required|integer|min:5|max:60',
-            'recovery_attempts_limit' => 'required|integer|min:1|max:5',
-        ]);
+        try {
+            // Verificar que el usuario sea admin
+            if (!auth()->user() || auth()->user()->role !== 'admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ No tienes permiso para acceder a esta configuración'
+                ], 403);
+            }
 
-        // Guardar todas las configuraciones de seguridad
-        SystemSetting::setSetting('password_min_length', $validated['password_min_length'], 'integer', 'Longitud mínima de contraseña');
-        SystemSetting::setSetting('password_min_length_enabled', $validated['password_min_length_enabled'] ?? false, 'boolean', 'Longitud mínima habilitada');
-        SystemSetting::setSetting('password_require_mixed_case', $validated['password_require_mixed_case'] ?? false, 'boolean', 'Requiere mayúsculas y minúsculas');
-        SystemSetting::setSetting('password_require_numbers', $validated['password_require_numbers'] ?? false, 'boolean', 'Requiere números');
-        SystemSetting::setSetting('password_require_symbols', $validated['password_require_symbols'] ?? false, 'boolean', 'Requiere caracteres especiales');
-        SystemSetting::setSetting('password_mixed_case_enabled', $validated['password_mixed_case_enabled'] ?? false, 'boolean', 'Mayúsculas/minúsculas habilitado');
-        SystemSetting::setSetting('two_factor_enabled', $validated['two_factor_enabled'] ?? false, 'boolean', 'Autenticación 2FA habilitada');
-        SystemSetting::setSetting('two_factor_method', $validated['two_factor_method'] ?? 'email', 'string', 'Método de 2FA');
-        SystemSetting::setSetting('auto_lock_enabled', $validated['auto_lock_enabled'] ?? false, 'boolean', 'Bloqueo automático habilitado');
-        SystemSetting::setSetting('auto_lock_attempts', $validated['auto_lock_attempts'], 'integer', 'Intentos antes del bloqueo');
-        SystemSetting::setSetting('password_recovery_enabled', $validated['password_recovery_enabled'] ?? false, 'boolean', 'Recuperación de contraseña habilitada');
-        SystemSetting::setSetting('password_recovery_method', $validated['password_recovery_method'] ?? 'email', 'string', 'Método de recuperación');
-        SystemSetting::setSetting('recovery_code_expiry', $validated['recovery_code_expiry'], 'integer', 'Expiración de código de recuperación (minutos)');
-        SystemSetting::setSetting('recovery_attempts_limit', $validated['recovery_attempts_limit'], 'integer', 'Límite de intentos de recuperación');
+            // Obtener datos del request - convertir explícitamente a booleanos
+            $passwordMinLength = intval($request->input('password_min_length', 8));
+            $requireUppercase = filter_var($request->input('password_require_uppercase', false), FILTER_VALIDATE_BOOLEAN);
+            $requireNumbers = filter_var($request->input('password_require_numbers', false), FILTER_VALIDATE_BOOLEAN);
+            $requireSpecial = filter_var($request->input('password_require_special', false), FILTER_VALIDATE_BOOLEAN);
+            $expirationDays = intval($request->input('password_expiration_days', 90));
 
-        return redirect()->back()->with('success', 'Configuración de seguridad actualizada correctamente');
+            // Validar datos con reglas complejas
+            $validated = [
+                'password_min_length' => $passwordMinLength,
+                'password_require_uppercase' => $requireUppercase,
+                'password_require_numbers' => $requireNumbers,
+                'password_require_special' => $requireSpecial,
+                'password_expiration_days' => $expirationDays,
+            ];
+
+            // Validar con reglas específicas
+            if ($passwordMinLength < 6 || $passwordMinLength > 20) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ La longitud mínima debe estar entre 6 y 20 caracteres',
+                    'errors' => ['password_min_length' => ['La longitud mínima debe estar entre 6 y 20 caracteres']]
+                ], 422);
+            }
+
+            if ($requireSpecial && $passwordMinLength < 10) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ Si se requieren caracteres especiales, la longitud mínima debe ser al menos 10 caracteres',
+                    'errors' => ['password_min_length' => ['La longitud mínima debe ser al menos 10 caracteres si se requieren caracteres especiales']]
+                ], 422);
+            }
+
+            if ($expirationDays < 0 || $expirationDays > 365) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ Los días de expiración deben estar entre 0 y 365',
+                    'errors' => ['password_expiration_days' => ['Los días de expiración deben estar entre 0 y 365']]
+                ], 422);
+            }
+
+            // Iniciar transacción para garantizar consistencia
+            \DB::beginTransaction();
+
+            // Guardar todas las configuraciones de seguridad
+            SystemSetting::setSetting(
+                'password_min_length',
+                $passwordMinLength,
+                'integer',
+                'Longitud mínima de contraseña'
+            );
+            SystemSetting::setSetting(
+                'password_require_uppercase',
+                $requireUppercase,
+                'boolean',
+                'Requiere mayúsculas en contraseña'
+            );
+            SystemSetting::setSetting(
+                'password_require_numbers',
+                $requireNumbers,
+                'boolean',
+                'Requiere números en contraseña'
+            );
+            SystemSetting::setSetting(
+                'password_require_special',
+                $requireSpecial,
+                'boolean',
+                'Requiere caracteres especiales en contraseña'
+            );
+            SystemSetting::setSetting(
+                'password_expiration_days',
+                $expirationDays,
+                'integer',
+                'Días de expiración de contraseña (0 = sin expiración)'
+            );
+
+            // Registrar en auditoría si existe el método
+            if (auth()->user() && method_exists(auth()->user(), 'logActivity')) {
+                auth()->user()->logActivity('security.settings.updated', [
+                    'min_length' => $passwordMinLength,
+                    'require_uppercase' => $requireUppercase,
+                    'require_numbers' => $requireNumbers,
+                    'require_special' => $requireSpecial,
+                    'expiration_days' => $expirationDays,
+                ]);
+            }
+
+            \DB::commit();
+
+            // Obtener datos actualizados para devolver al frontend
+            $updatedSettings = [
+                'password_min_length' => $passwordMinLength,
+                'password_require_uppercase' => $requireUppercase,
+                'password_require_numbers' => $requireNumbers,
+                'password_require_special' => $requireSpecial,
+                'password_expiration_days' => $expirationDays,
+                'updated_at' => now()->toDateTimeString(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Políticas de seguridad guardadas exitosamente',
+                'data' => $updatedSettings,
+                'timestamp' => now()->timestamp
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+
+            \Log::error('Error al actualizar configuración de seguridad', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al guardar: ' . ($e->getMessage() ?: 'Error desconocido'),
+                'timestamp' => now()->timestamp
+            ], 500);
+        }
     }
 
     public function resetPasswords(Request $request)
@@ -341,38 +492,6 @@ class ConfigurationController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
         }
-    }
-
-    public function listBackups()
-    {
-        $path = storage_path('app/backups');
-        $backups = [];
-
-        if (is_dir($path)) {
-            $files = array_diff(scandir($path), ['.', '..']);
-            foreach ($files as $file) {
-                if (pathinfo($file, PATHINFO_EXTENSION) === 'sql') {
-                    $backups[] = [
-                        'filename' => $file,
-                        'size' => filesize($path . '/' . $file),
-                        'date' => filectime($path . '/' . $file),
-                    ];
-                }
-            }
-        }
-
-        return response()->json($backups);
-    }
-
-    public function downloadBackup($filename)
-    {
-        $path = storage_path('app/backups/' . $filename);
-
-        if (!file_exists($path)) {
-            return redirect()->back()->with('error', 'El archivo de respaldo no existe');
-        }
-
-        return response()->download($path);
     }
 
     public function deleteBackup($filename)
@@ -522,5 +641,353 @@ class ConfigurationController extends Controller
 
         $status = $user->turno_activo ? 'activado' : 'desactivado';
         return redirect()->back()->with('success', "Usuario {$status} correctamente");
+    }
+
+    // ========== CACHÉ Y DATOS ==========
+    public function limpiarCache()
+    {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            \Illuminate\Support\Facades\Artisan::call('config:clear');
+            \Illuminate\Support\Facades\Artisan::call('view:clear');
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Caché del sistema limpiado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al limpiar caché: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function eliminarTodosDatos(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'confirm' => 'required|accepted',
+                'password' => 'required|current_password',
+            ]);
+
+            // Esta es una acción irreversible, solo admin puede hacerlo
+            if (auth()->user()->role !== 'admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ No tienes permiso para esta acción'
+                ], 403);
+            }
+
+            // Eliminar todos los datos excepto el usuario admin actual
+            Asistencia::truncate();
+            User::where('id', '!=', auth()->id())->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Todos los datos han sido eliminados correctamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al eliminar datos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ========== MÉTODOS MEJORADOS DE RESPALDO ==========
+    public function generarRespaldo(Request $request)
+    {
+        try {
+            $filename = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
+            $path = storage_path('app/backups');
+
+            if (!is_dir($path)) {
+                mkdir($path, 0755, true);
+            }
+
+            $connection = config('database.default');
+            $credentials = config('database.connections.' . $connection);
+
+            if ($connection === 'sqlite') {
+                // Para SQLite, simplemente copiar el archivo
+                copy($credentials['database'], $path . '/' . $filename);
+            } else {
+                // Para MySQL
+                $command = sprintf(
+                    'mysqldump -u%s -p%s %s > %s',
+                    escapeshellarg($credentials['username']),
+                    escapeshellarg($credentials['password']),
+                    escapeshellarg($credentials['database']),
+                    escapeshellarg($path . '/' . $filename)
+                );
+
+                exec($command, $output, $return);
+
+                if ($return !== 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => '❌ Error al crear el respaldo de base de datos'
+                    ], 500);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Respaldo creado exitosamente: ' . $filename,
+                'filename' => $filename,
+                'size' => filesize($path . '/' . $filename),
+                'date' => filemtime($path . '/' . $filename)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function listarRespaldos()
+    {
+        try {
+            $path = storage_path('app/backups');
+            $backups = [];
+
+            if (is_dir($path)) {
+                $files = array_diff(scandir($path), ['.', '..']);
+                foreach ($files as $file) {
+                    $fullPath = $path . '/' . $file;
+                    
+                    // Saltar directorios
+                    if (is_dir($fullPath)) {
+                        continue;
+                    }
+                    
+                    // Incluir archivos que:
+                    // 1. Tengan extensión .sql
+                    // 2. Empiecen con 'backup_' o 'backup_sistema_'
+                    // 3. Sean archivos válidos (no directorios)
+                    $extension = pathinfo($file, PATHINFO_EXTENSION);
+                    $isBackupFile = (
+                        $extension === 'sql' || 
+                        strpos($file, 'backup_') === 0
+                    );
+                    
+                    if ($isBackupFile && is_file($fullPath)) {
+                        $backups[] = [
+                            'filename' => $file,
+                            'size' => filesize($fullPath),
+                            'size_formatted' => $this->formatBytes(filesize($fullPath)),
+                            'date' => filemtime($fullPath),
+                            'date_formatted' => date('d/m/Y H:i:s', filemtime($fullPath)),
+                            'extension' => $extension ?: 'backup'
+                        ];
+                    }
+                }
+
+                // Ordenar por fecha descendente
+                usort($backups, fn($a, $b) => $b['date'] <=> $a['date']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'backups' => $backups,
+                'total' => count($backups)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al listar respaldos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function descargarRespaldo($filename)
+    {
+        try {
+            $path = storage_path('app/backups/' . $filename);
+
+            if (!file_exists($path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ El archivo de respaldo no existe'
+                ], 404);
+            }
+
+            // Leer el archivo y devolverlo como blob
+            $fileContent = file_get_contents($path);
+            
+            return response()->make($fileContent, 200, [
+                'Content-Type' => 'application/octet-stream',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Length' => filesize($path),
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function subirYRestaurar(Request $request)
+    {
+        try {
+            $request->validate([
+                'backup_file' => 'required|file|mimes:sql|max:102400' // 100MB max
+            ]);
+
+            $path = storage_path('app/backups');
+            if (!is_dir($path)) {
+                mkdir($path, 0755, true);
+            }
+
+            $filename = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
+            $request->file('backup_file')->move($path, $filename);
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Archivo de respaldo subido correctamente',
+                'filename' => $filename
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function confirmarRestauracion(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'filename' => 'required|string',
+                'password' => 'required|current_password'
+            ]);
+
+            $path = storage_path('app/backups/' . $validated['filename']);
+
+            if (!file_exists($path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ El archivo de respaldo no existe'
+                ], 404);
+            }
+
+            $connection = config('database.default');
+            $credentials = config('database.connections.' . $connection);
+
+            if ($connection === 'sqlite') {
+                // Para SQLite - hacer backup de seguridad primero
+                $dbPath = $credentials['database'];
+                $safetyBackup = $dbPath . '.safety_' . date('Y-m-d_H-i-s');
+                
+                if (file_exists($dbPath)) {
+                    copy($dbPath, $safetyBackup);
+                }
+                
+                // Restaurar
+                if (!copy($path, $dbPath)) {
+                    throw new \Exception('No se pudo restaurar el archivo de base de datos SQLite');
+                }
+            } else {
+                // Para MySQL - usar mejor manejo de errores
+                $tempErrorFile = tempnam(sys_get_temp_dir(), 'mysql_restore_');
+                
+                $command = sprintf(
+                    'mysql -u%s -p%s %s < %s 2>%s',
+                    escapeshellarg($credentials['username']),
+                    escapeshellarg($credentials['password']),
+                    escapeshellarg($credentials['database']),
+                    escapeshellarg($path),
+                    escapeshellarg($tempErrorFile)
+                );
+
+                exec($command, $output, $return);
+                
+                // Leer errores si los hay
+                $errors = '';
+                if (file_exists($tempErrorFile)) {
+                    $errors = file_get_contents($tempErrorFile);
+                    unlink($tempErrorFile);
+                }
+
+                if ($return !== 0) {
+                    $errorMsg = $errors ?: 'Error desconocido al restaurar';
+                    
+                    // Limpiar el mensaje de error
+                    $errorMsg = trim(preg_replace('/Warning:.*?\n/', '', $errorMsg));
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => '❌ Error al restaurar: ' . substr($errorMsg, 0, 200)
+                    ], 500);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Base de datos restaurada correctamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error de validación: contraseña incorrecta',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error durante la restauración: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function eliminarRespaldo($filename)
+    {
+        try {
+            $path = storage_path('app/backups/' . $filename);
+
+            if (!file_exists($path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ El archivo de respaldo no existe'
+                ], 404);
+            }
+
+            unlink($path);
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Respaldo eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ========== MÉTODO AUXILIAR ==========
+    private function formatBytes($bytes, $precision = 2)
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+        
+        return round($bytes, $precision) . ' ' . $units[$i];
     }
 }

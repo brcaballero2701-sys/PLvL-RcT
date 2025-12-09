@@ -36,9 +36,8 @@ class AsistenciaController extends Controller
                 ];
             });
 
-        // Obtener registros de asistencia del día actual
+        // Obtener registros de asistencia - OBTENER TODAS LAS ASISTENCIAS
         $todasAsistencias = Asistencia::with(['instructor'])
-            ->whereDate('fecha_hora_registro', today())
             ->orderBy('fecha_hora_registro', 'desc')
             ->get();
 
@@ -105,7 +104,8 @@ class AsistenciaController extends Controller
      */
     public function registrarAsistencia(Request $request): JsonResponse
     {
-        $request->validate([
+        // Validación con reglas más estrictas
+        $validated = $request->validate([
             'cedula' => 'required|string',
             'tipo_registro' => 'required|in:entrada,salida',
         ]);
@@ -113,13 +113,29 @@ class AsistenciaController extends Controller
         $guardia = auth()->user();
         
         // Buscar instructor por cédula
-        $instructor = Instructor::where('cedula', $request->cedula)->first();
+        $instructor = Instructor::where('documento_identidad', $validated['cedula'])->first();
         
         if (!$instructor) {
             return response()->json([
                 'success' => false,
                 'message' => 'Instructor no encontrado con esa cédula'
             ], 404);
+        }
+
+        // RF032: VALIDACIÓN DE DOBLE ESCANEO (Anti-Duplicados)
+        // Verificar si existe un registro del mismo instructor en los últimos 5 minutos
+        $ultimoRegistro = Asistencia::where('instructor_id', $instructor->id)
+            ->where('fecha_hora_registro', '>=', now()->subMinutes(5))
+            ->orderBy('fecha_hora_registro', 'desc')
+            ->first();
+
+        if ($ultimoRegistro && $ultimoRegistro->tipo_movimiento === $validated['tipo_registro']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Doble escaneo detectado. Espere antes de intentar de nuevo.',
+                'codigo_error' => 'DUPLICATE_SCAN',
+                'timestamp_ultimo_registro' => $ultimoRegistro->fecha_hora_registro
+            ], 409); // 409 Conflict
         }
 
         // Crear registro de asistencia
@@ -129,7 +145,7 @@ class AsistenciaController extends Controller
         $observaciones = '';
 
         // Verificar si es llegada tardía (después de las 7:15 AM)
-        if ($request->tipo_registro === 'entrada' && $ahora->format('H:i') > '07:15') {
+        if ($validated['tipo_registro'] === 'entrada' && $ahora->format('H:i') > '07:15') {
             $esLlegadaTardia = true;
             $estadoRegistro = 'novedad';
             $observaciones = 'Llegada tardía registrada';
@@ -138,7 +154,7 @@ class AsistenciaController extends Controller
         $asistencia = Asistencia::create([
             'instructor_id' => $instructor->id,
             'guardia_id' => $guardia->id,
-            'tipo_movimiento' => $request->tipo_registro,
+            'tipo_movimiento' => $validated['tipo_registro'],
             'fecha_hora_registro' => $ahora,
             'es_tardanza' => $esLlegadaTardia,
             'observaciones' => $observaciones,
@@ -155,7 +171,7 @@ class AsistenciaController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->getMensajeExito($request->tipo_registro, $instructor),
+            'message' => $this->getMensajeExito($validated['tipo_registro'], $instructor),
             'asistencia' => $asistencia->load(['instructor']),
             'notificacion' => $notificacion
         ]);

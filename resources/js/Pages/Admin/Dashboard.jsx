@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { UserCircle, Clock, XCircle, LogOut, ChevronLeft, ChevronRight, Calendar, Info, Shield, Zap, Globe } from "lucide-react";
 import ThemeButton from '@/Components/ThemeButton';
 
-export default function Dashboard({ auth, asistenciasStats = {}, instructores = [], historialReciente = [], chartData = {} }) {
+export default function Dashboard({ auth, asistenciasStats = {}, instructores = [], recentAsistencias = [], chartData = {} }) {
   const { systemSettings, ziggy } = usePage().props;
   
   // Estado para paginación del historial
@@ -13,8 +13,8 @@ export default function Dashboard({ auth, asistenciasStats = {}, instructores = 
   const [mostrarAcercaDe, setMostrarAcercaDe] = useState(false);
   const itemsPerPage = 10;
   
-  // Usar historial reciente real de la base de datos o mostrar mensaje informativo
-  const historialData = historialReciente && historialReciente.length > 0 ? historialReciente : [];
+  // Usar historial reciente real de la base de datos
+  const historialData = recentAsistencias && recentAsistencias.length > 0 ? recentAsistencias : [];
   
   // Calcular paginación
   const totalItems = historialData.length;
@@ -77,9 +77,9 @@ export default function Dashboard({ auth, asistenciasStats = {}, instructores = 
 
   // Calcular datos del gráfico circular basado en estadísticas reales
   const totalInstructores = asistenciasStats.total_instructores || 0;
-  const presentesHoy = asistenciasStats.presentes_hoy || 0;
-  const tardesHoy = asistenciasStats.llegadas_tarde || 0;
-  const ausentesHoy = asistenciasStats.ausentes_hoy || 0;
+  const presentesHoy = asistenciasStats.puntuales || 0;
+  const tardesHoy = asistenciasStats.tarde || 0;
+  const ausentesHoy = asistenciasStats.ausencias || 0;
 
   // Usar datos reales del backend o calcular como respaldo
   const dataPie = puntualidadData.datasets ? [
@@ -242,7 +242,7 @@ export default function Dashboard({ auth, asistenciasStats = {}, instructores = 
                   <tr key={registro.id || index} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {registro.instructor}
+                        {registro.user_name}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -254,10 +254,10 @@ export default function Dashboard({ auth, asistenciasStats = {}, instructores = 
                       {registro.fecha}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {registro.horaEntrada || registro.hora_entrada || '-'}
+                      {registro.hora_entrada || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {registro.horaSalida || registro.hora_salida || '-'}
+                      {registro.hora_salida || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${

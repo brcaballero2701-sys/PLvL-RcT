@@ -54,6 +54,7 @@ class AdminController extends Controller
 
         $asistenciasStats = [
             'total_hoy' => Asistencia::whereDate('fecha_hora_registro', today())->count(),
+            'total_instructores' => $totalInstructores,
             'puntuales' => Asistencia::whereDate('fecha_hora_registro', today())
                                    ->where('tipo_movimiento', 'entrada')
                                    ->where('es_tardanza', false)
@@ -76,24 +77,49 @@ class AdminController extends Controller
             });
 
         // Asistencias recientes
-        $recentAsistencias = Asistencia::with('instructor')
+        $allAsistencias = Asistencia::with('instructor')
+            ->whereDate('fecha_hora_registro', today())
             ->orderBy('fecha_hora_registro', 'desc')
-            ->limit(10)
-            ->get()
-            ->map(function ($asistencia) {
-                $instructor = $asistencia->instructor;
-                $fechaHora = Carbon::parse($asistencia->fecha_hora_registro);
-                
-                return [
-                    'id' => $asistencia->id,
-                    'user_name' => $instructor ? $instructor->nombres . ' ' . $instructor->apellidos : 'No disponible',
-                    'area' => $instructor ? ($instructor->area_asignada ?? 'No asignada') : 'No disponible',
-                    'fecha' => $fechaHora->format('d/m/Y'),
-                    'hora_entrada' => $asistencia->tipo_movimiento === 'entrada' ? $fechaHora->format('H:i') : '--',
-                    'hora_salida' => $asistencia->tipo_movimiento === 'salida' ? $fechaHora->format('H:i') : '--',
-                    'estado' => $asistencia->es_tardanza ? 'Tarde' : 'Puntual'
-                ];
-            });
+            ->limit(20)
+            ->get();
+
+        // Agrupar por instructor_id para combinar entrada y salida
+        $agrupadasHoy = $allAsistencias->groupBy('instructor_id');
+        
+        $recentAsistencias = $agrupadasHoy->map(function($grupo) {
+            $entrada = $grupo->firstWhere('tipo_movimiento', 'entrada');
+            $salida = $grupo->firstWhere('tipo_movimiento', 'salida');
+            
+            // Usar el registro de entrada si existe, sino el de salida
+            $registroPrincipal = $entrada ?? $salida;
+            
+            if (!$registroPrincipal) {
+                return null;
+            }
+            
+            $instructor = $registroPrincipal->instructor;
+            $fechaEntrada = $entrada ? Carbon::parse($entrada->fecha_hora_registro) : null;
+            $fechaSalida = $salida ? Carbon::parse($salida->fecha_hora_registro) : null;
+            
+            // Determinar estado
+            $estado = 'Presente';
+            if ($entrada) {
+                $estado = $entrada->es_tardanza ? 'Tarde' : 'Puntual';
+            } elseif ($salida) {
+                $estado = 'Solo Salida';
+            }
+
+            return [
+                'id' => $entrada ? $entrada->id : $salida->id,
+                'user_name' => $instructor ? ($instructor->nombres . ' ' . $instructor->apellidos) : 'No disponible',
+                'area' => $instructor ? ($instructor->area_asignada ?? 'No asignada') : 'No disponible',
+                'fecha' => $fechaEntrada ? $fechaEntrada->format('d/m/Y') : ($fechaSalida ? $fechaSalida->format('d/m/Y') : 'N/A'),
+                'hora_entrada' => $fechaEntrada ? $fechaEntrada->format('H:i') : '-',
+                'hora_salida' => $fechaSalida ? $fechaSalida->format('H:i') : '-',
+                'estado' => $estado,
+                'tipo_movimiento' => $entrada ? 'entrada' : 'salida'
+            ];
+        })->filter()->values()->toArray();
 
         // Distribución de roles
         $rolesDistribution = [
@@ -130,10 +156,15 @@ class AdminController extends Controller
             'stats' => $userStats,
             'asistenciasStats' => $asistenciasStats,
             'recentUsers' => $recentUsers->toArray(),
-            'recentAsistencias' => $recentAsistencias->toArray(),
+            'recentAsistencias' => $recentAsistencias,
             'rolesDistribution' => $rolesDistribution,
             'weeklyAsistencias' => $weeklyAsistencias,
             'systemStatus' => $systemStatus,
+            'chartData' => [
+                'asistenciasPorHora' => $this->getAsistenciasPorHora(),
+                'puntualidadData' => $this->getPuntualidadData(),
+                'asistenciasUltimos7Dias' => $this->getAsistenciasUltimos7Dias()
+            ],
             'auth' => [
                 'user' => auth()->user()
             ]
@@ -289,6 +320,39 @@ class AdminController extends Controller
     }
 
     /**
+     * Calcular horas trabajadas de manera precisa
+     */
+    private function calcularHorasTrabajadas($fechaHoraEntrada, $fechaHoraSalida)
+    {
+        if (!$fechaHoraEntrada || !$fechaHoraSalida) {
+            return '-';
+        }
+
+        try {
+            $inicio = Carbon::parse($fechaHoraEntrada);
+            $fin = Carbon::parse($fechaHoraSalida);
+            
+            // Verificar que la salida sea después de la entrada
+            if ($fin->lessThan($inicio)) {
+                return 'Error';
+            }
+            
+            // Calcular la diferencia en minutos totales
+            $totalMinutos = $inicio->diffInMinutes($fin);
+            
+            // Convertir a horas y minutos
+            $horas = intval($totalMinutos / 60);
+            $minutos = $totalMinutos % 60;
+            
+            // Formatear como HH:MM
+            return sprintf('%02d:%02d', $horas, $minutos);
+            
+        } catch (Exception $e) {
+            return 'Error';
+        }
+    }
+
+    /**
      * Mostrar historial de asistencias
      */
     public function historial(Request $request): Response
@@ -395,54 +459,63 @@ class AdminController extends Controller
                 ['path' => request()->url(), 'pageName' => 'page']
             );
         } else {
-            // Ejecutar consulta normal con paginación
-            $historialData = $query->paginate(50);
-        }
-
-        // Transformar los datos para la vista
-        $historialData->through(function ($asistencia) {
-            $instructor = $asistencia->instructor ?? null;
+            // Ejecutar consulta normal y agrupar por instructor y fecha
+            $allAsistencias = $query->get();
             
-            if ($asistencia->tipo_movimiento === 'ausente') {
-                // Caso especial para ausentes
+            // Agrupar por instructor_id y fecha
+            $agrupadosPorDia = $allAsistencias->groupBy(function($item) {
+                return $item->instructor_id . '-' . Carbon::parse($item->fecha_hora_registro)->format('Y-m-d');
+            });
+            
+            // Transformar grupos en registros únicos con entrada y salida
+            $historialAgrupado = $agrupadosPorDia->map(function($grupo) {
+                $entrada = $grupo->firstWhere('tipo_movimiento', 'entrada');
+                $salida = $grupo->firstWhere('tipo_movimiento', 'salida');
+                
+                // Usar el registro de entrada si existe, sino el de salida
+                $registroPrincipal = $entrada ?? $salida;
+                
+                if (!$registroPrincipal) {
+                    return null;
+                }
+                
+                $instructor = $registroPrincipal->instructor;
+                $fechaEntrada = $entrada ? Carbon::parse($entrada->fecha_hora_registro) : null;
+                $fechaSalida = $salida ? Carbon::parse($salida->fecha_hora_registro) : null;
+                
+                // Determinar estado
+                $estado = 'Normal';
+                if ($entrada) {
+                    $estado = $entrada->es_tardanza ? 'Tarde' : 'Puntual';
+                } elseif ($salida) {
+                    $estado = 'Solo Salida';
+                }
+                
                 return [
-                    'id' => $asistencia->id,
+                    'id' => $entrada ? $entrada->id : $salida->id,
                     'instructor' => $instructor ? $instructor->nombres . ' ' . $instructor->apellidos : 'No disponible',
                     'area' => $instructor ? ($instructor->area_asignada ?? 'No asignada') : 'No disponible',
-                    'fecha' => Carbon::parse($asistencia->fecha_hora_registro)->format('d/m/Y'),
-                    'horaEntrada' => '-',
-                    'horaSalida' => '-',
-                    'estado' => 'Ausente',
-                    'tipo_movimiento' => 'ausente',
-                    'es_tardanza' => false,
-                    'observaciones' => $asistencia->observaciones ?? 'Sin registro'
+                    'fecha' => $fechaEntrada ? $fechaEntrada->format('d/m/Y') : ($fechaSalida ? $fechaSalida->format('d/m/Y') : 'N/A'),
+                    'horaEntrada' => $fechaEntrada ? $fechaEntrada->format('H:i') : '-',
+                    'horaSalida' => $fechaSalida ? $fechaSalida->format('H:i') : '-',
+                    'estado' => $estado,
+                    'tipo_movimiento' => $entrada ? 'entrada' : 'salida',
+                    'es_tardanza' => $entrada ? $entrada->es_tardanza : false,
+                    'observaciones' => $entrada ? ($entrada->observaciones ?? '') : ($salida ? ($salida->observaciones ?? '') : '')
                 ];
-            }
+            })->filter()->values();
             
-            // Caso normal para registros existentes
-            $fechaHora = Carbon::parse($asistencia->fecha_hora_registro);
+            // Paginar manualmente
+            $page = $request->get('page', 1);
+            $perPage = 50;
+            $total = $historialAgrupado->count();
+            $items = $historialAgrupado->slice(($page - 1) * $perPage, $perPage)->values();
             
-            // Determinar el estado de la asistencia
-            $estado = 'Normal';
-            if ($asistencia->tipo_movimiento === 'entrada') {
-                $estado = $asistencia->es_tardanza ? 'Tarde' : 'Puntual';
-            } elseif ($asistencia->tipo_movimiento === 'salida') {
-                $estado = 'Salida';
-            }
-            
-            return [
-                'id' => $asistencia->id,
-                'instructor' => $instructor ? $instructor->nombres . ' ' . $instructor->apellidos : 'No disponible',
-                'area' => $instructor ? ($instructor->area_asignada ?? 'No asignada') : 'No disponible',
-                'fecha' => $fechaHora->format('d/m/Y'),
-                'horaEntrada' => $asistencia->tipo_movimiento === 'entrada' ? $fechaHora->format('H:i') : '-',
-                'horaSalida' => $asistencia->tipo_movimiento === 'salida' ? $fechaHora->format('H:i') : '-',
-                'estado' => $estado,
-                'tipo_movimiento' => $asistencia->tipo_movimiento,
-                'es_tardanza' => $asistencia->es_tardanza,
-                'observaciones' => $asistencia->observaciones
-            ];
-        });
+            $historialData = new \Illuminate\Pagination\LengthAwarePaginator(
+                $items, $total, $perPage, $page,
+                ['path' => request()->url(), 'pageName' => 'page']
+            );
+        }
 
         // Generar estadísticas del historial (aplicar filtros si existen)
         $fechaEstadisticas = $request->filled('fecha') ? $request->get('fecha') : today()->format('Y-m-d');
@@ -489,11 +562,243 @@ class AdminController extends Controller
     }
 
     /**
-     * Mostrar página de reportes
+     * Mostrar página de reportes con datos reales
      */
-    public function reportes(): Response
+    public function reportes(Request $request): Response
     {
-        return Inertia::render('Admin/Reportes');
+        // Obtener todos los instructores para el filtro
+        $instructores = Instructor::orderBy('nombres')->get();
+
+        // Obtener áreas únicas de instructores
+        $areas = Instructor::whereNotNull('area_asignada')
+            ->distinct()
+            ->pluck('area_asignada')
+            ->sort()
+            ->values();
+
+        // Construir la consulta base para reportes
+        $query = Asistencia::with('instructor')
+            ->orderBy('fecha_hora_registro', 'desc');
+
+        // Si no hay filtros, mostrar últimas asistencias (últimos 7 días)
+        $tienesFiltros = $request->filled('fechaInicio') || $request->filled('fechaFin') || 
+                         $request->filled('instructor') || $request->filled('area');
+
+        if (!$tienesFiltros) {
+            // Por defecto: últimos 7 días
+            $query->whereDate('fecha_hora_registro', '>=', Carbon::now()->subDays(7)->toDateString());
+        } else {
+            // Aplicar filtro por fecha de inicio
+            if ($request->filled('fechaInicio')) {
+                $fechaInicio = $request->get('fechaInicio');
+                $query->whereDate('fecha_hora_registro', '>=', $fechaInicio);
+            }
+
+            // Aplicar filtro por fecha de fin
+            if ($request->filled('fechaFin')) {
+                $fechaFin = $request->get('fechaFin');
+                $query->whereDate('fecha_hora_registro', '<=', $fechaFin);
+            }
+        }
+
+        // Aplicar filtro por instructor
+        if ($request->filled('instructor') && $request->get('instructor') !== '') {
+            $instructorId = $request->get('instructor');
+            $query->where('instructor_id', $instructorId);
+        }
+
+        // Aplicar filtro por área
+        if ($request->filled('area') && $request->get('area') !== '') {
+            $area = $request->get('area');
+            $query->whereHas('instructor', function($q) use ($area) {
+                $q->where('area_asignada', $area);
+            });
+        }
+
+        // Ejecutar consulta con paginación
+        $allAsistencias = $query->get();
+
+        // Agrupar por instructor_id y fecha
+        $agrupadosPorDia = $allAsistencias->groupBy(function($item) {
+            return $item->instructor_id . '-' . Carbon::parse($item->fecha_hora_registro)->format('Y-m-d');
+        });
+
+        // Transformar grupos en registros únicos con entrada y salida
+        $reportesAgrupados = $agrupadosPorDia->map(function($grupo) {
+            $entrada = $grupo->firstWhere('tipo_movimiento', 'entrada');
+            $salida = $grupo->firstWhere('tipo_movimiento', 'salida');
+            
+            // Usar el registro de entrada si existe, sino el de salida
+            $registroPrincipal = $entrada ?? $salida;
+            
+            if (!$registroPrincipal) {
+                return null;
+            }
+            
+            $instructor = $registroPrincipal->instructor;
+            $fechaEntrada = $entrada ? Carbon::parse($entrada->fecha_hora_registro) : null;
+            $fechaSalida = $salida ? Carbon::parse($salida->fecha_hora_registro) : null;
+            
+            // Determinar estado
+            $estado = 'Completo';
+            if ($entrada) {
+                $estado = $entrada->es_tardanza ? 'Tarde' : 'Puntual';
+            } elseif ($salida) {
+                $estado = 'Sin salida';
+            }
+
+            return [
+                'id' => $entrada ? $entrada->id : $salida->id,
+                'instructor' => $instructor ? $instructor->nombres . ' ' . $instructor->apellidos : 'No disponible',
+                'area' => $instructor ? ($instructor->area_asignada ?? 'No asignada') : 'No disponible',
+                'fecha' => $fechaEntrada ? $fechaEntrada->format('d/m/Y') : ($fechaSalida ? $fechaSalida->format('d/m/Y') : 'N/A'),
+                'horaEntrada' => $fechaEntrada ? $fechaEntrada->format('H:i') : '-',
+                'horaSalida' => $fechaSalida ? $fechaSalida->format('H:i') : '-',
+                'horasTrabajadas' => $fechaEntrada && $fechaSalida ? $this->calcularHorasTrabajadas($fechaEntrada, $fechaSalida) : '-',
+                'estado' => $estado,
+                'tipo_movimiento' => $entrada ? 'entrada' : 'salida'
+            ];
+        })->filter()->values();
+
+        // Paginar manualmente
+        $page = $request->get('page', 1);
+        $perPage = 15;
+        $total = $reportesAgrupados->count();
+        $items = $reportesAgrupados->slice(($page - 1) * $perPage, $perPage)->values();
+        
+        $paginatedData = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items, $total, $perPage, $page,
+            ['path' => request()->url(), 'pageName' => 'page']
+        );
+
+        // Transformar datos para la vista
+        $reportesData = $items->toArray();
+
+        // Calcular estadísticas reales
+        $totalInstructores = Instructor::count();
+        $presentesHoy = Asistencia::whereDate('fecha_hora_registro', today())
+            ->where('tipo_movimiento', 'entrada')
+            ->distinct('instructor_id')
+            ->count();
+        $ausentesHoy = max(0, $totalInstructores - $presentesHoy);
+        $tardesHoy = Asistencia::whereDate('fecha_hora_registro', today())
+            ->where('tipo_movimiento', 'entrada')
+            ->where('es_tardanza', true)
+            ->count();
+
+        // Calcular promedio de asistencia
+        $totalAsistenciasRegistradas = Asistencia::where('tipo_movimiento', 'entrada')->count();
+        $totalAsistenciasEsperadas = max(1, Instructor::count() * 30); // Aproximación: 30 días
+        $promedioAsistencia = $totalAsistenciasEsperadas > 0 
+            ? round(($totalAsistenciasRegistradas / $totalAsistenciasEsperadas) * 100) 
+            : 0;
+
+        $estadisticas = [
+            'totalInstructores' => $totalInstructores,
+            'presentesHoy' => $presentesHoy,
+            'ausentesHoy' => $ausentesHoy,
+            'tardesHoy' => $tardesHoy,
+            'promedioAsistencia' => $promedioAsistencia . '%',
+            'periodo' => [
+                'inicio' => $request->get('fechaInicio', Carbon::now()->subDays(7)->format('d/m/Y')),
+                'fin' => $request->get('fechaFin', today()->format('d/m/Y'))
+            ]
+        ];
+
+        return Inertia::render('Admin/Reportes', [
+            'instructores' => $instructores->map(function($instructor) {
+                return [
+                    'id' => $instructor->id,
+                    'nombres' => $instructor->nombres,
+                    'apellidos' => $instructor->apellidos,
+                    'area' => $instructor->area_asignada ?? 'No asignada'
+                ];
+            })->toArray(),
+            'reportesData' => $reportesData,
+            'estadisticas' => $estadisticas,
+            'filtros' => $request->only(['fechaInicio', 'fechaFin', 'instructor', 'area']),
+            'areas' => $areas->values()->toArray(),
+            'pagination' => [
+                'current_page' => $paginatedData->currentPage(),
+                'last_page' => $paginatedData->lastPage(),
+                'per_page' => $paginatedData->perPage(),
+                'total' => $paginatedData->total(),
+                'from' => $paginatedData->firstItem() ?? 0,
+                'to' => $paginatedData->lastItem() ?? 0
+            ]
+        ]);
+    }
+
+    /**
+     * Exportar reportes en formato PDF o Excel
+     */
+    public function exportarReporte(Request $request)
+    {
+        // Construir consulta con filtros
+        $query = Asistencia::with('instructor')
+            ->orderBy('fecha_hora_registro', 'desc');
+
+        if ($request->filled('fechaInicio')) {
+            $query->whereDate('fecha_hora_registro', '>=', $request->get('fechaInicio'));
+        }
+
+        if ($request->filled('fechaFin')) {
+            $query->whereDate('fecha_hora_registro', '<=', $request->get('fechaFin'));
+        }
+
+        if ($request->filled('instructor') && $request->get('instructor') !== '') {
+            $query->where('instructor_id', $request->get('instructor'));
+        }
+
+        if ($request->filled('area') && $request->get('area') !== '') {
+            $area = $request->get('area');
+            $query->whereHas('instructor', function($q) use ($area) {
+                $q->where('area_asignada', $area);
+            });
+        }
+
+        $asistencias = $query->get();
+
+        // Generar CSV
+        $filename = 'reporte_asistencias_' . date('Y-m-d_H-i-s') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($asistencias) {
+            $file = fopen('php://output', 'w');
+            
+            // Encabezados
+            fputcsv($file, ['Instructor', 'Área', 'Fecha', 'Hora Entrada', 'Hora Salida', 'Estado', 'Tipo Movimiento'], ';');
+
+            // Datos
+            foreach ($asistencias as $asistencia) {
+                $instructor = $asistencia->instructor;
+                $fechaHora = Carbon::parse($asistencia->fecha_hora_registro);
+
+                $estado = 'Normal';
+                if ($asistencia->tipo_movimiento === 'entrada') {
+                    $estado = $asistencia->es_tardanza ? 'Tarde' : 'Puntual';
+                } elseif ($asistencia->tipo_movimiento === 'salida') {
+                    $estado = 'Sin salida';
+                }
+
+                fputcsv($file, [
+                    $instructor ? $instructor->nombres . ' ' . $instructor->apellidos : 'No disponible',
+                    $instructor ? ($instructor->area_asignada ?? 'No asignada') : 'No disponible',
+                    $fechaHora->format('d/m/Y'),
+                    $asistencia->tipo_movimiento === 'entrada' ? $fechaHora->format('H:i') : '--',
+                    $asistencia->tipo_movimiento === 'salida' ? $fechaHora->format('H:i') : '--',
+                    $estado,
+                    $asistencia->tipo_movimiento
+                ], ';');
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     /**
@@ -929,20 +1234,32 @@ class AdminController extends Controller
     public function vigilantes(Request $request): Response
     {
         // Obtener vigilantes (usuarios con rol 'guardia')
-        $vigilantes = User::where('role', 'guardia')
-            ->orderBy('name')
-            ->get()
+        $vigilantesQuery = User::where('role', 'guardia')
+            ->orderBy('name');
+        
+        // Aplicar búsqueda si existe
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $vigilantesQuery->where(function($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('cedula', 'like', "%{$search}%")
+                      ->orWhere('ubicacion_asignada', 'like', "%{$search}%");
+            });
+        }
+        
+        $vigilantes = $vigilantesQuery->get()
             ->map(function($vigilante) {
                 return [
                     'id' => $vigilante->id,
-                    'nombre' => $vigilante->name,
-                    'email' => $vigilante->email,
-                    'telefono' => $vigilante->telefono ?? 'No registrado',
+                    'nombre' => $vigilante->name ?? 'No registrado',
+                    'email' => $vigilante->email ?? 'No registrado',
+                    'telefono' => $vigilante->phone ?? $vigilante->telefono ?? 'No registrado',
                     'cedula' => $vigilante->cedula ?? 'No registrada',
                     'ubicacion_asignada' => $vigilante->ubicacion_asignada ?? 'No asignada',
                     'hora_inicio_turno' => $vigilante->hora_inicio_turno ?? '06:00',
                     'hora_fin_turno' => $vigilante->hora_fin_turno ?? '14:00',
-                    'fecha_creacion' => $vigilante->created_at->format('d/m/Y'),
+                    'fecha_creacion' => $vigilante->created_at ? $vigilante->created_at->format('d/m/Y') : 'N/A',
                     'estado' => 'Activo'
                 ];
             })->values()->all();
@@ -950,14 +1267,19 @@ class AdminController extends Controller
         // Estadísticas de vigilantes
         $estadisticas = [
             'total_vigilantes' => User::where('role', 'guardia')->count(),
-            'vigilantes_activos' => User::where('role', 'guardia')->count(), // Todos activos por ahora
-            'turnos_cubiertos' => User::where('role', 'guardia')->whereNotNull('hora_inicio_turno')->count(),
-            'ubicaciones_asignadas' => User::where('role', 'guardia')->whereNotNull('ubicacion_asignada')->count()
+            'vigilantes_activos' => User::where('role', 'guardia')->count(),
+            'turnos_cubiertos' => User::where('role', 'guardia')
+                ->whereNotNull('hora_inicio_turno')
+                ->count(),
+            'ubicaciones_asignadas' => User::where('role', 'guardia')
+                ->whereNotNull('ubicacion_asignada')
+                ->count()
         ];
 
         return Inertia::render('Admin/Vigilantes', [
             'vigilantes' => $vigilantes,
-            'estadisticas' => $estadisticas
+            'estadisticas' => $estadisticas,
+            'filtros' => $request->only(['search'])
         ]);
     }
 }

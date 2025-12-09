@@ -16,10 +16,22 @@ class EnsureUserIsAdmin
     public function handle(Request $request, Closure $next): Response
     {
         if (!auth()->check()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autenticado'
+                ], 401);
+            }
             return redirect()->route('login');
         }
 
         if (!auth()->user()->isAdmin()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo los administradores pueden acceder a esta sección.'
+                ], 403);
+            }
             abort(403, 'Acceso denegado. Solo los administradores pueden acceder a esta sección.');
         }
 

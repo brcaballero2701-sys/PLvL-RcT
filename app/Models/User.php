@@ -19,6 +19,11 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'theme_preference',
+        'high_contrast',
+        'reduce_motion',
+        'font_size',
+        'line_spacing',
         'codigo_guardia',
         'ubicacion_asignada',
         'hora_inicio_turno',
@@ -75,6 +80,16 @@ class User extends Authenticatable
     public function asistenciasRegistradas(): HasMany
     {
         return $this->hasMany(Asistencia::class, 'guardia_id');
+    }
+
+    public function twoFactorAuth()
+    {
+        return $this->hasOne(TwoFactorAuth::class);
+    }
+
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class);
     }
 
     public function iniciarTurno(): void

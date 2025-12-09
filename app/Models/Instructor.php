@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
 
 class Instructor extends Model
 {
+    use HasFactory;
+
     protected $table = 'instructors';
 
     protected $fillable = [
@@ -41,6 +44,14 @@ class Instructor extends Model
     public function asistencias(): HasMany
     {
         return $this->hasMany(Asistencia::class);
+    }
+
+    /**
+     * RF008: Relación con horarios específicos del instructor
+     */
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(InstructorSchedule::class);
     }
 
     /**

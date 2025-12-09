@@ -18,34 +18,35 @@ export default function SidebarLayout({ title, children, header }) {
     // Datos de desarrolladores
     const desarrolladores = [
         {
-            nombre: 'Diego Digo Armando Quintero Contreras',
-            cedula: '1091091655034',
+            nombre: 'Diego Armando Quintero Contreras',
+            cedula: '1091655034',
             rol: 'Desarrollador 1',
             formacion: 'ADSO - Análisis y Desarrollo de Software',
-            correo: 'diegoarmandoquintero57@gmail.com',
+            correo: 'contrerasneko57@gmail.com',
             celular: '3227773379'
         },
         {
-            nombre: 'Kevin Duwan Coronel Caballero',
+            nombre: 'Kevy Duvan Coronel Caballero',
             cedula: '1091681160',
             rol: 'Desarrollador 2',
             formacion: 'ADSO - Análisis y Desarrollo de Software',
-            correo: 'kevincaballer400@gmail.com',
-            celular: '3049074779'
+            correo: 'caballerokevin418@gmail.com',
+            celular: '3004907439'
         },
         {
-            nombre: 'Jorge Jesús Vera Pallares',
-            cedula: '3257664',
+            nombre: 'George Jesus Vera Pallarez',
+            cedula: '1003257664',
             rol: 'Desarrollador 3',
             formacion: 'ADSO - Análisis y Desarrollo de Software',
             correo: 'jesusverap01@gmail.com',
-            celular: '3223320275'
+            celular: null
         }
     ];
 
     const liderEstructura = {
-        nombre: 'Jessica Paola Quintero Carrascal',
+        nombre: 'Yesica Paola Carrascal Quintero',
         cargo: 'Instructora Líder',
+        celular: '3112395817',
         descripcion: 'Sistema de Gestión de Asistencia SENA - Plataforma integral para el control y monitoreo de asistencia de instructores'
     };
 
@@ -336,6 +337,7 @@ export default function SidebarLayout({ title, children, header }) {
                                         <div>
                                             <p className="font-bold text-gray-900 text-lg">{liderEstructura.nombre}</p>
                                             <p className="text-sm text-purple-700 font-semibold mt-1">{liderEstructura.cargo}</p>
+                                            <p className="text-sm text-gray-700 mt-1"><span className="font-semibold">Celular:</span> {liderEstructura.celular}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -400,7 +402,7 @@ export default function SidebarLayout({ title, children, header }) {
                                         </div>
                                         <div className="bg-white p-3 rounded border border-orange-200">
                                             <p className="font-semibold text-gray-800 text-sm mb-1">Base de Datos</p>
-                                            <p className="text-gray-700 text-sm">SQLite</p>
+                                            <p className="text-gray-700 text-sm">MySQL</p>
                                         </div>
                                         <div className="bg-white p-3 rounded border border-orange-200">
                                             <p className="font-semibold text-gray-800 text-sm mb-1">Estilos</p>

@@ -126,14 +126,14 @@ class InstructorController extends Controller
                 'required',
                 'string',
                 'max:20',
-                Rule::unique('instructors')->ignore($instructor->id)
+                Rule::unique('instructors', 'documento_identidad')->ignore($instructor->id)
             ],
             'tipo_documento' => 'required|in:CC,CE,PA,TI',
             'email' => [
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('instructors')->ignore($instructor->id)
+                Rule::unique('instructors', 'email')->ignore($instructor->id)
             ],
             'telefono' => 'nullable|string|max:20',
             'area_asignada' => 'required|string|max:255',
@@ -145,7 +145,7 @@ class InstructorController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('instructors')->ignore($instructor->id)
+                Rule::unique('instructors', 'codigo_barras')->ignore($instructor->id)
             ],
             'direccion' => 'nullable|string|max:500',
             'observaciones' => 'nullable|string|max:1000',

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { Clock, Users, MessageSquare, Image, Shield, Database, CheckCircle, Settings } from 'lucide-react';
+import { Clock, Users, MessageSquare, Image, Shield, Database, CheckCircle, Settings, Download, Upload, AlertTriangle, HardDrive, Calendar, User, Trash2 } from 'lucide-react';
 import LogoDisplay from '@/Components/LogoDisplay';
 import SidebarLayout from '@/Layouts/SidebarLayout';
 
 export default function Configuraciones() {
-    const { rolesStats, asistenciasStats, asistenciasRecientes, systemSettings } = usePage().props;
+    const { rolesStats, asistenciasStats, asistenciasRecientes, systemSettings, backupFiles } = usePage().props;
 
     const [activeSection, setActiveSection] = useState('horarios');
     const [activeSubSection, setActiveSubSection] = useState('configuracion');
@@ -50,7 +50,7 @@ export default function Configuraciones() {
     const [colorSaveStatus, setColorSaveStatus] = useState({ loading: false, message: '' });
     const [previewColor, setPreviewColor] = useState(systemSettings?.primary_color || 'green');
 
-    // Estado para políticas de seguridad
+    // Estado para políticas de seguridad CON VALIDACIONES
     const [securityConfig, setSecurityConfig] = useState({
         min_length: systemSettings?.password_min_length || '8',
         require_uppercase: systemSettings?.password_require_uppercase !== false,
@@ -58,10 +58,22 @@ export default function Configuraciones() {
         require_special: systemSettings?.password_require_special || false,
         expiration_days: systemSettings?.password_expiration_days || '90'
     });
-    const [securityStatus, setSecurityStatus] = useState({ loading: false, message: '' });
+
+    // Estado para errores de validación
+    const [securityErrors, setSecurityErrors] = useState({});
+    const [securityStatus, setSecurityStatus] = useState({ loading: false, message: '', type: 'info' });
 
     // Estado para respaldo y restauración
     const [backupStatus, setBackupStatus] = useState({ loading: false, message: '' });
+    const [uploadFile, setUploadFile] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [backupList, setBackupList] = useState(backupFiles || []);
+
+    // Estado para modal de contraseña en restauración
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [restorePassword, setRestorePassword] = useState('');
+    const [restorePasswordError, setRestorePasswordError] = useState('');
+    const [isRestoringWithPassword, setIsRestoringWithPassword] = useState(false);
 
     // Mapa de colores
     const colorMap = {
@@ -236,7 +248,10 @@ export default function Configuraciones() {
             const result = await response.json();
             if (response.ok && result.success) {
                 setNotificacionesStatus({ loading: false, message: '✅ Configuración guardada exitosamente' });
-                setTimeout(() => window.location.reload(), 1500);
+                setTimeout(() => {
+                    setNotificacionesStatus({ loading: false, message: '' });
+                    showTestNotification('success');
+                }, 1500);
             } else {
                 setNotificacionesStatus({ loading: false, message: `❌ ${result.message || 'Error al guardar'}` });
             }
@@ -274,8 +289,18 @@ export default function Configuraciones() {
 
             const result = await response.json();
             if (response.ok && result.success) {
+                setNotificacionesConfig({
+                    color_success: 'green',
+                    color_error: 'red',
+                    color_warning: 'yellow',
+                    color_info: 'blue',
+                    duration: '5',
+                    position: 'top-right',
+                    sound: false,
+                    animation: 'slide'
+                });
                 setNotificacionesStatus({ loading: false, message: '✅ Configuración restablecida a valores predeterminados' });
-                setTimeout(() => window.location.reload(), 1500);
+                setTimeout(() => setNotificacionesStatus({ loading: false, message: '' }), 2000);
             } else {
                 setNotificacionesStatus({ loading: false, message: `❌ ${result.message || 'Error al restablecer'}` });
             }
@@ -303,9 +328,33 @@ export default function Configuraciones() {
     };
 
     const handleGuardarSeguridad = async () => {
-        setSecurityStatus({ loading: true, message: '⏳ Guardando políticas de seguridad...' });
+        // Validar antes de enviar
+        const minLength = parseInt(securityConfig.min_length);
+        
+        if (securityConfig.require_special && minLength < 10) {
+            setSecurityStatus({ 
+                loading: false, 
+                message: '❌ Si se requieren caracteres especiales, la longitud mínima debe ser al menos 10 caracteres',
+                type: 'error'
+            });
+            return;
+        }
+
+        setSecurityStatus({ loading: true, message: '⏳ Guardando políticas de seguridad...', type: 'info' });
+        
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            const payload = {
+                password_min_length: minLength,
+                password_require_uppercase: Boolean(securityConfig.require_uppercase),
+                password_require_numbers: Boolean(securityConfig.require_numbers),
+                password_require_special: Boolean(securityConfig.require_special),
+                password_expiration_days: parseInt(securityConfig.expiration_days)
+            };
+
+            console.log('Enviando payload:', payload);
+
             const response = await fetch(route('admin.configuraciones.seguridad'), {
                 method: 'POST',
                 headers: {
@@ -313,25 +362,42 @@ export default function Configuraciones() {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    min_length: securityConfig.min_length,
-                    require_uppercase: securityConfig.require_uppercase,
-                    require_numbers: securityConfig.require_numbers,
-                    require_special: securityConfig.require_special,
-                    expiration_days: securityConfig.expiration_days
-                })
+                body: JSON.stringify(payload)
             });
 
             const result = await response.json();
+            
+            console.log('Response status:', response.status);
+            console.log('Response body:', result);
+
             if (response.ok && result.success) {
-                setSecurityStatus({ loading: false, message: '✅ Políticas de seguridad guardadas exitosamente' });
-                setTimeout(() => window.location.reload(), 1500);
+                setSecurityStatus({ 
+                    loading: false, 
+                    message: '✅ Políticas de seguridad guardadas exitosamente',
+                    type: 'success'
+                });
+                setTimeout(() => {
+                    setSecurityStatus({ loading: false, message: '', type: 'info' });
+                    showTestNotification('success');
+                }, 1500);
             } else {
-                setSecurityStatus({ loading: false, message: `❌ ${result.message || 'Error al guardar'}` });
+                const errorMsg = result.errors 
+                    ? Object.values(result.errors).flat().join(', ')
+                    : result.message || 'Error desconocido';
+                    
+                setSecurityStatus({ 
+                    loading: false, 
+                    message: `❌ Error: ${errorMsg}`,
+                    type: 'error'
+                });
             }
         } catch (error) {
-            console.error('Error:', error);
-            setSecurityStatus({ loading: false, message: '❌ Error: ' + error.message });
+            console.error('Error completo:', error);
+            setSecurityStatus({ 
+                loading: false, 
+                message: `❌ Error de conexión: ${error.message}`,
+                type: 'error'
+            });
         }
     };
 
@@ -351,10 +417,16 @@ export default function Configuraciones() {
 
             const result = await response.json();
             if (response.ok && result.success) {
+                // Añadir el nuevo respaldo a la lista sin recargar
+                const newBackup = {
+                    name: result.backup_name || `backup_${new Date().getTime()}.sql`,
+                    size: result.size || 0,
+                    date: new Date().toISOString()
+                };
+                
+                setBackupList([newBackup, ...backupList]);
                 setBackupStatus({ loading: false, message: '✅ Respaldo creado exitosamente' });
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                setTimeout(() => setBackupStatus({ loading: false, message: '' }), 3000);
             } else {
                 setBackupStatus({ loading: false, message: `❌ Error: ${result.message || 'Error al crear respaldo'}` });
             }
@@ -364,9 +436,66 @@ export default function Configuraciones() {
         }
     };
 
-    const handleDescargarRespaldo = (filename) => {
-        // Descargar pasando el nombre completo del archivo
-        window.location.href = route('admin.backup.download', { backup: filename });
+    const handleDescargarRespaldo = async (filename) => {
+        // Descargar usando blob para permitir elegir ubicación
+        try {
+            setBackupStatus({ loading: true, message: '⏳ Descargando respaldo...' });
+            const response = await fetch(route('admin.backup.download', { filename: filename }), {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al descargar el respaldo');
+            }
+
+            const blob = await response.blob();
+            
+            // Crear un elemento link temporal para descargar
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            
+            // Triggear descarga
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            setBackupStatus({ loading: false, message: '✅ Respaldo descargado correctamente' });
+            setTimeout(() => setBackupStatus({ loading: false, message: '' }), 2000);
+        } catch (error) {
+            console.error('Error:', error);
+            setBackupStatus({ loading: false, message: '❌ Error: ' + error.message });
+        }
+    };
+
+    const handleEliminarRespaldo = async (filename) => {
+        if (!confirm('¿Está seguro de que desea eliminar este respaldo?')) return;
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const response = await fetch(route('admin.backup.delete', { filename: filename }), {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                // Eliminar de la lista sin recargar
+                setBackupList(backupList.filter(b => b.name !== filename));
+                setBackupStatus({ loading: false, message: '✅ Respaldo eliminado exitosamente' });
+                setTimeout(() => setBackupStatus({ loading: false, message: '' }), 2000);
+            } else {
+                setBackupStatus({ loading: false, message: `❌ ${result.message || 'Error al eliminar respaldo'}` });
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            setBackupStatus({ loading: false, message: '❌ Error: ' + error.message });
+        }
     };
 
     const handleGuardarAvanzada = async () => {
@@ -478,6 +607,194 @@ export default function Configuraciones() {
         }
     };
 
+    // Función para confirmar restauración con contraseña
+    const handleConfirmRestore = async () => {
+        if (!uploadFile) {
+            alert('Por favor selecciona un archivo');
+            return;
+        }
+
+        if (!restorePassword.trim()) {
+            setRestorePasswordError('La contraseña es requerida');
+            return;
+        }
+
+        setIsRestoringWithPassword(true);
+        setRestorePasswordError('');
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            // Primero validar la contraseña
+            const validateResponse = await fetch(route('admin.backup.confirm-restore'), {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    password: restorePassword
+                })
+            });
+
+            const validateResult = await validateResponse.json();
+
+            if (!validateResponse.ok || !validateResult.success) {
+                setRestorePasswordError(validateResult.message || 'Contraseña incorrecta');
+                setIsRestoringWithPassword(false);
+                return;
+            }
+
+            // Si la contraseña es válida, proceder con la restauración
+            const formData = new FormData();
+            formData.append('backup', uploadFile);
+
+            const restoreResponse = await fetch(route('admin.backup.restore'), {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: formData
+            });
+
+            const restoreResult = await restoreResponse.json();
+
+            if (restoreResponse.ok && restoreResult.success) {
+                setShowPasswordModal(false);
+                setRestorePassword('');
+                setUploadFile(null);
+                alert('✅ Base de datos restaurada exitosamente');
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                setRestorePasswordError(restoreResult.message || 'Error al restaurar');
+                setIsRestoringWithPassword(false);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            setRestorePasswordError('Error de conexión: ' + error.message);
+            setIsRestoringWithPassword(false);
+        }
+    };
+
+    // Función para limpiar error al escribir
+    const handlePasswordChange = (e) => {
+        setRestorePassword(e.target.value);
+        if (restorePasswordError) {
+            setRestorePasswordError(''); // Limpiar el error cuando el usuario comienza a escribir
+        }
+    };
+
+    // Función para manejar el inicio de restauración
+    const handleStartRestore = async () => {
+        if (!uploadFile) {
+            alert('Por favor selecciona un archivo');
+            return;
+        }
+        if (!confirm('⚠️ ADVERTENCIA: Esto restaurará la base de datos. ¿Continuar?')) return;
+        
+        setShowPasswordModal(true);
+    };
+
+    // Función para mostrar notificaciones de prueba
+    const showTestNotification = (type) => {
+        const messages = {
+            success: {
+                title: '✅ Operación completada',
+                message: 'Los cambios se guardaron correctamente'
+            },
+            error: {
+                title: '❌ Error en la operación',
+                message: 'No se pudo completar la acción'
+            },
+            warning: {
+                title: '⚠️ Advertencia',
+                message: 'Revisa los datos ingresados'
+            },
+            info: {
+                title: 'ℹ️ Información',
+                message: 'Nueva actualización disponible'
+            }
+        };
+
+        const config = messages[type] || messages.info;
+        
+        // Crear elemento de notificación
+        const notification = document.createElement('div');
+
+        const dotColor = {
+            success: `bg-${notificacionesConfig.color_success}-500`,
+            error: `bg-${notificacionesConfig.color_error}-500`,
+            warning: `bg-${notificacionesConfig.color_warning}-500`,
+            info: `bg-${notificacionesConfig.color_info}-500`
+        };
+
+        notification.className = `fixed ${notificacionesConfig.position} p-4 rounded-lg border-2 shadow-lg z-50 animate-${notificacionesConfig.animation} max-w-sm`;
+        notification.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 ${dotColor[type]} rounded-full"></div>
+                <div>
+                    <p class="font-medium">${config.title}</p>
+                    <p class="text-sm">${config.message}</p>
+                </div>
+            </div>
+        `;
+
+        // Aplicar estilos dinámicamente
+        const bgColors = {
+            green: 'rgb(240, 253, 244)',
+            red: 'rgb(254, 242, 242)',
+            yellow: 'rgb(254, 252, 232)',
+            blue: 'rgb(239, 246, 255)'
+        };
+
+        const borderColors = {
+            green: 'rgb(220, 252, 231)',
+            red: 'rgb(254, 226, 226)',
+            yellow: 'rgb(254, 248, 204)',
+            blue: 'rgb(219, 234, 254)'
+        };
+
+        const textColors = {
+            green: 'rgb(20, 83, 45)',
+            red: 'rgb(127, 29, 29)',
+            yellow: 'rgb(113, 63, 18)',
+            blue: 'rgb(30, 58, 138)'
+        };
+
+        const colorKey = {
+            success: notificacionesConfig.color_success,
+            error: notificacionesConfig.color_error,
+            warning: notificacionesConfig.color_warning,
+            info: notificacionesConfig.color_info
+        }[type];
+
+        notification.style.backgroundColor = bgColors[colorKey] || bgColors.blue;
+        notification.style.borderColor = borderColors[colorKey] || borderColors.blue;
+        notification.style.color = textColors[colorKey] || textColors.blue;
+
+        document.body.appendChild(notification);
+
+        // Eliminar automáticamente según duración
+        const duration = parseInt(notificacionesConfig.duration) * 1000 || 5000;
+        if (duration > 0) {
+            setTimeout(() => notification.remove(), duration);
+        }
+    };
+
+    const formatFileSize = (size) => {
+        if (size < 1024) return `${size} B`;
+        if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
+        if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+        return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES') + ' ' + date.toLocaleTimeString('es-ES');
+    };
+
     return (
         <SidebarLayout
             title="Configuraciones del Sistema - SENA"
@@ -488,86 +805,87 @@ export default function Configuraciones() {
                 </div>
             }
         >
-            <div className="flex">
-                {/* Sidebar de opciones */}
-                <aside className="w-96 bg-white border-r border-gray-200 p-6">
+            <div className="flex gap-0">
+                {/* Sidebar de opciones - SECUNDARIO */}
+                <aside className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto shadow-lg">
+                    <h3 className="text-gray-700 text-sm font-bold uppercase tracking-widest mb-6 px-3">Opciones de Configuración</h3>
                     <nav className="space-y-2">
                         <button
                             onClick={() => setActiveSection('horarios')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                 activeSection === 'horarios' 
-                                    ? 'bg-gray-100 border-2 border-gray-300' 
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
+                                    : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Clock className="text-gray-600" size={20} />
-                            <span className="text-gray-800 font-medium">Horarios y Asistencias</span>
+                            <Clock size={20} />
+                            <span className="text-sm">Horarios y Asistencias</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('usuarios')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                 activeSection === 'usuarios' 
-                                    ? 'bg-gray-100 border-2 border-gray-300' 
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
+                                    : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Users className="text-gray-600" size={20} />
-                            <span className="text-gray-800 font-medium">Usuarios y Roles</span>
+                            <Users size={20} />
+                            <span className="text-sm">Usuarios y Roles</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('mensajes')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                 activeSection === 'mensajes' 
-                                    ? 'bg-gray-100 border-2 border-gray-300' 
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
+                                    : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <MessageSquare className="text-gray-600" size={20} />
-                            <span className="text-gray-800 font-medium">Mensajes flash / Notificaciones</span>
+                            <MessageSquare size={20} />
+                            <span className="text-sm">Mensajes flash / Notificaciones</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('personalizacion')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                 activeSection === 'personalizacion' 
-                                    ? 'bg-gray-100 border-2 border-gray-300' 
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
+                                    : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Image className="text-gray-600" size={20} />
-                            <span className="text-gray-800 font-medium">Personalización del Sistema</span>
+                            <Image size={20} />
+                            <span className="text-sm">Personalización del Sistema</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('seguridad')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                 activeSection === 'seguridad' 
-                                    ? 'bg-gray-100 border-2 border-gray-300' 
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
+                                    : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Shield className="text-gray-600" size={20} />
-                            <span className="text-gray-800 font-medium">Seguridad y Contraseñas</span>
+                            <Shield size={20} />
+                            <span className="text-sm">Seguridad y Contraseñas</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('respaldo')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                 activeSection === 'respaldo' 
-                                    ? 'bg-gray-100 border-2 border-gray-300' 
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
+                                    : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Database className="text-gray-600" size={20} />
-                            <span className="text-gray-800 font-medium">Respaldo y Restauración</span>
+                            <Database size={20} />
+                            <span className="text-sm">Respaldo y Restauración</span>
                         </button>
                     </nav>
                 </aside>
 
                 {/* Contenido principal */}
-                <main className="flex-1 p-8">
+                <main className="flex-1 p-8 overflow-y-auto">
                     {/* Sección Horarios y Asistencias */}
                     {activeSection === 'horarios' && (
                         <div>
@@ -959,7 +1277,6 @@ export default function Configuraciones() {
                                             Notificaciones de Error
                                         </label>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 bg-red-500 rounded border border-gray-300"></div>
                                             <select
                                                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                                 value={notificacionesConfig.color_error}
@@ -1009,58 +1326,18 @@ export default function Configuraciones() {
 
                             {/* Configuración de comportamiento */}
                             <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuración de Comportamiento</h3>
-                                
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <label className="text-sm font-medium text-gray-700">Duración de las notificaciones</label>
-                                            <p className="text-xs text-gray-500">Tiempo en segundos antes de que desaparezca automáticamente</p>
-                                        </div>
-                                        <select
-                                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                            value={notificacionesConfig.duration}
-                                            onChange={(e) => setNotificacionesConfig({ ...notificacionesConfig, duration: e.target.value })}
-                                        >
-                                            <option value="3">3 segundos</option>
-                                            <option value="5">5 segundos</option>
-                                            <option value="8">8 segundos</option>
-                                            <option value="0">Manual</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-700">Posición en pantalla</label>
-                                            <p className="text-xs text-gray-500">Ubicación donde aparecen las notificaciones</p>
-                                        </div>
-                                        <select
-                                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                            value={notificacionesConfig.position}
-                                            onChange={(e) => setNotificacionesConfig({ ...notificacionesConfig, position: e.target.value })}
-                                        >
-                                            <option value="top-right">Arriba Derecha</option>
-                                            <option value="top-left">Arriba Izquierda</option>
-                                            <option value="bottom-right">Abajo Derecha</option>
-                                            <option value="bottom-left">Abajo Izquierda</option>
-                                            <option value="top-center">Arriba Centro</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <div>
                                             <label className="text-sm font-medium text-gray-700">Sonido de notificación</label>
-                                            <p className="text-xs text-gray-500">Reproducir sonido cuando aparece una notificación</p>
+                                            <p className="text-xs text-gray-500">Reproducir un sonido al mostrar notificaciones</p>
                                         </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={notificacionesConfig.sound}
-                                                onChange={(e) => setNotificacionesConfig({ ...notificacionesConfig, sound: e.target.checked })}
-                                            />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                                        </label>
+                                        <input
+                                            type="checkbox"
+                                            className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                            checked={notificacionesConfig.sound}
+                                            onChange={(e) => setNotificacionesConfig({ ...notificacionesConfig, sound: e.target.checked })}
+                                        />
                                     </div>
 
                                     <div className="flex items-center justify-between">
@@ -1069,63 +1346,57 @@ export default function Configuraciones() {
                                             <p className="text-xs text-gray-500">Efecto visual al mostrar notificaciones</p>
                                         </div>
                                         <select
-                                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                             value={notificacionesConfig.animation}
                                             onChange={(e) => setNotificacionesConfig({ ...notificacionesConfig, animation: e.target.value })}
                                         >
                                             <option value="slide">Deslizar</option>
                                             <option value="fade">Desvanecer</option>
                                             <option value="bounce">Rebote</option>
-                                            <option value="scale">Escalar</option>
+                                            <option value="scale">Escala</option>
                                         </select>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Vista previa */}
+                            {/* Duración y posición */}
                             <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Vista Previa</h3>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Comportamiento</h3>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <button className="p-3 bg-green-50 border-2 border-green-200 rounded-lg text-left hover:bg-green-100 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                            <div>
-                                                <p className="font-medium text-green-800">Operación exitosa</p>
-                                                <p className="text-sm text-green-600">Los datos se guardaron correctamente</p>
-                                            </div>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-700">Duración (segundos)</label>
+                                            <p className="text-xs text-gray-500">Tiempo que permanecerá visible la notificación</p>
                                         </div>
-                                    </button>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="30"
+                                            value={notificacionesConfig.duration}
+                                            onChange={(e) => setNotificacionesConfig({ ...notificacionesConfig, duration: e.target.value })}
+                                            className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                        />
+                                    </div>
 
-                                    <button className="p-3 bg-red-50 border-2 border-red-200 rounded-lg text-left hover:bg-red-100 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                            <div>
-                                                <p className="font-medium text-red-800">Error en la operación</p>
-                                                <p className="text-sm text-red-600">No se pudo completar la acción</p>
-                                            </div>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-700">Posición en pantalla</label>
+                                            <p className="text-xs text-gray-500">Dónde aparecerá la notificación</p>
                                         </div>
-                                    </button>
-
-                                    <button className="p-3 bg-yellow-50 border-2 border-yellow-200 rounded-lg text-left hover:bg-yellow-100 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                            <div>
-                                                <p className="font-medium text-yellow-800">Advertencia</p>
-                                                <p className="text-sm text-yellow-600">Revisa los datos ingresados</p>
-                                            </div>
-                                        </div>
-                                    </button>
-
-                                    <button className="p-3 bg-blue-50 border-2 border-blue-200 rounded-lg text-left hover:bg-blue-100 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                            <div>
-                                                <p className="font-medium text-blue-800">Información</p>
-                                                <p className="text-sm text-blue-600">Nueva actualización disponible</p>
-                                            </div>
-                                        </div>
-                                    </button>
+                                        <select
+                                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                            value={notificacionesConfig.position}
+                                            onChange={(e) => setNotificacionesConfig({ ...notificacionesConfig, position: e.target.value })}
+                                        >
+                                            <option value="top-right">Superior Derecha</option>
+                                            <option value="top-left">Superior Izquierda</option>
+                                            <option value="top-center">Superior Centro</option>
+                                            <option value="bottom-right">Inferior Derecha</option>
+                                            <option value="bottom-left">Inferior Izquierda</option>
+                                            <option value="bottom-center">Inferior Centro</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1133,350 +1404,329 @@ export default function Configuraciones() {
                             <div className="flex gap-4">
                                 <button
                                     onClick={handleGuardarNotificaciones}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+                                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg"
+                                    disabled={notificacionesStatus.loading}
                                 >
-                                    Guardar Configuración
+                                    {notificacionesStatus.loading ? 'Guardando...' : 'Guardar Cambios'}
                                 </button>
                                 <button
                                     onClick={handleRestablecerNotificaciones}
-                                    className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+                                    className="bg-white border border-red-300 text-red-600 hover:bg-red-50 font-medium py-3 px-6 rounded-lg"
+                                    disabled={notificacionesStatus.loading}
                                 >
-                                    Restablecer por Defecto
+                                    Restablecer Valores
                                 </button>
                             </div>
+
+                            {/* Mensaje de estado */}
+                            {notificacionesStatus.message && (
+                                <div className="mt-4 text-sm text-gray-600">
+                                    {notificacionesStatus.message}
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {/* Sección Personalización */}
+                    {/* Sección Personalización del Sistema */}
                     {activeSection === 'personalizacion' && (
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800 mb-2">Personalización del Sistema</h2>
-                            <p className="text-gray-600 mb-8">Personaliza la apariencia y configuración visual del sistema</p>
+                            <p className="text-gray-600 mb-8">Personaliza el logo, colores y apariencia del sistema</p>
                             
                             {/* Logo Institucional */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Logo Institucional</h3>
+                            <div className="bg-white rounded-lg p-8 border border-gray-200 mb-8">
+                                <h3 className="text-xl font-semibold text-gray-800 mb-6">Logo Institucional</h3>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                    {/* Zona de carga */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Subir Nuevo Logo
-                                        </label>
-                                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors cursor-pointer">
-                                            <input 
-                                                type="file" 
-                                                id="logoUpload"
-                                                className="hidden" 
-                                                accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp" 
+                                        <label className="block text-sm font-medium text-gray-700 mb-4">Cargar Nuevo Logo</label>
+                                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all"
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                e.currentTarget.classList.add('bg-blue-50', 'border-blue-400');
+                                            }}
+                                            onDragLeave={(e) => {
+                                                e.currentTarget.classList.remove('bg-blue-50', 'border-blue-400');
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                e.currentTarget.classList.remove('bg-blue-50', 'border-blue-400');
+                                                const file = e.dataTransfer.files[0];
+                                                if (file) handleLogoUpload({target: {files: [file]}});
+                                            }}
+                                        >
+                                            <input
+                                                type="file"
+                                                accept="image/*"
                                                 onChange={handleLogoUpload}
-                                                disabled={uploadStatus.loading}
+                                                className="hidden"
+                                                id="logo-upload"
                                             />
-                                            <label htmlFor="logoUpload" className="cursor-pointer">
-                                                <div className="space-y-2">
-                                                    <div className="mx-auto w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                                                        {uploadStatus.loading ? (
-                                                            <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                                                        ) : (
-                                                            <Image className="w-6 h-6 text-gray-400" />
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-900">
-                                                            {uploadStatus.loading ? 'Subiendo...' : 'Haz clic para subir'}
-                                                        </p>
-                                                        <p className="text-xs text-gray-500">PNG, JPG, SVG hasta 2MB</p>
-                                                    </div>
-                                                </div>
+                                            <label htmlFor="logo-upload" className="cursor-pointer block">
+                                                <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                                                <p className="text-sm font-medium text-gray-900">Haz clic para cargar o arrastra una imagen</p>
+                                                <p className="text-xs text-gray-500 mt-2">PNG, JPG, SVG (máx. 2MB)</p>
                                             </label>
                                         </div>
-
+                                        <button
+                                            onClick={handleLogoReset}
+                                            className="w-full mt-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors"
+                                        >
+                                            Restablecer Logo Predeterminado
+                                        </button>
                                         {uploadStatus.message && (
-                                            <div className={`mt-3 p-3 rounded-lg text-sm ${
-                                                uploadStatus.message.includes('Error') 
-                                                    ? 'bg-red-50 text-red-700 border border-red-200' 
-                                                    : 'bg-green-50 text-green-700 border border-green-200'
+                                            <div className={`mt-4 p-3 rounded-lg text-sm ${
+                                                uploadStatus.message.includes('✅') 
+                                                    ? 'bg-green-50 text-green-700 border border-green-200'
+                                                    : 'bg-red-50 text-red-700 border border-red-200'
                                             }`}>
                                                 {uploadStatus.message}
                                             </div>
                                         )}
-
-                                        <button
-                                            onClick={handleLogoReset}
-                                            disabled={uploadStatus.loading}
-                                            className="mt-4 w-full px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                                        >
-                                            Restablecer Logo Predeterminado
-                                        </button>
                                     </div>
                                     
+                                    {/* Vista previa del logo */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Vista Previa
-                                        </label>
-                                        <div className="bg-gray-50 rounded-lg p-6 flex items-center justify-center border border-gray-200" style={{ height: '128px', maxHeight: '128px', maxWidth: '100%', overflow: 'hidden' }}>
-                                            <LogoDisplay 
-                                                size="small"
-                                                alt="Vista previa del logo"
-                                                logoPath={currentLogoPath}
+                                        <label className="block text-sm font-medium text-gray-700 mb-4">Vista Previa</label>
+                                        <div className="w-full h-64 bg-gray-50 border-2 border-gray-200 rounded-lg flex items-center justify-center shadow-sm">
+                                            <img 
+                                                src={`${currentLogoPath}?t=${logoTimestamp}`}
+                                                alt="Logo actual"
+                                                className="max-h-full max-w-full object-contain"
+                                                onError={() => {
+                                                    // Fallback si la imagen no carga
+                                                }}
                                             />
                                         </div>
+                                        <p className="text-xs text-gray-500 mt-4 text-center">El logo se mostrará en la esquina superior izquierda del sistema</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Paleta de colores */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Esquema de Colores</h3>
+                            {/* Esquema de Colores */}
+                            <div className="bg-white rounded-lg p-8 border border-gray-200">
+                                <h3 className="text-xl font-semibold text-gray-800 mb-2">Esquema de Colores</h3>
+                                <p className="text-sm text-gray-600 mb-8">Selecciona el color principal del sistema y ve los cambios en tiempo real</p>
                                 
-                                <div className="space-y-4">
-                                    <p className="text-sm text-gray-600">Selecciona el color principal del sistema y ve los cambios en tiempo real</p>
-                                    
-                                    {/* Vista previa dinámica */}
-                                    <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                        <p className="text-xs text-gray-600 mb-3 font-medium">VISTA PREVIA DE LA BARRA DE NAVEGACIÓN</p>
-                                        <div 
-                                            id="color-preview-bar"
-                                            className="h-12 rounded-lg shadow-md flex items-center px-4 text-white font-semibold transition-all duration-300"
-                                            style={{ backgroundColor: `rgb(${colorMap[previewColor]?.[600]})` }}
-                                        >
-                                            Sistema SENA - Gestión de Asistencia
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-6 md:grid-cols-12 gap-3">
-                                        {[
-                                            { color: 'bg-green-600', name: 'Verde SENA', value: 'green' },
-                                            { color: 'bg-blue-600', name: 'Azul Corporativo', value: 'blue' },
-                                            { color: 'bg-indigo-600', name: 'Índigo', value: 'indigo' },
-                                            { color: 'bg-purple-600', name: 'Púrpura', value: 'purple' },
-                                            { color: 'bg-red-600', name: 'Rojo', value: 'red' },
-                                            { color: 'bg-orange-600', name: 'Naranja', value: 'orange' },
-                                            { color: 'bg-yellow-500', name: 'Amarillo', value: 'yellow' },
-                                            { color: 'bg-teal-600', name: 'Teal', value: 'teal' },
-                                            { color: 'bg-cyan-600', name: 'Cian', value: 'cyan' },
-                                            { color: 'bg-gray-600', name: 'Gris', value: 'gray' },
-                                            { color: 'bg-slate-600', name: 'Pizarra', value: 'slate' },
-                                            { color: 'bg-stone-600', name: 'Piedra', value: 'stone' }
-                                        ].map((colorOption, index) => (
-                                            <div key={index} className="flex flex-col items-center">
-                                                <button
-                                                    className={`w-10 h-10 ${colorOption.color} rounded-lg border-2 transition-all hover:scale-110 ${
-                                                        selectedColor === colorOption.value ? 'border-gray-800 ring-2 ring-gray-300 shadow-lg' : 'border-gray-200 hover:border-gray-400'
-                                                    }`}
-                                                    title={colorOption.name}
-                                                    onClick={() => {
-                                                        handleColorPreview(colorOption.value);
-                                                        handleColorChange(colorOption.value);
-                                                    }}
-                                                />
-                                                <span className="text-xs text-gray-600 mt-1 text-center">{colorOption.name.split(' ')[0]}</span>
-                                            </div>
+                                {/* Paleta de colores */}
+                                <div className="mb-8">
+                                    <label className="block text-sm font-medium text-gray-700 mb-6">Color Principal</label>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                        {Object.keys(colorMap).map((colorName) => (
+                                            <button
+                                                key={colorName}
+                                                onClick={() => {
+                                                    handleColorChange(colorName);
+                                                    handleColorPreview(colorName);
+                                                }}
+                                                className={`p-0 rounded-lg border-4 transition-all transform hover:scale-105 ${
+                                                    selectedColor === colorName
+                                                        ? `border-${colorName}-700 ring-4 ring-${colorName}-200 shadow-lg`
+                                                        : 'border-gray-200 hover:border-gray-400'
+                                                }`}
+                                                title={colorName.charAt(0).toUpperCase() + colorName.slice(1)}
+                                            >
+                                                <div className={`w-full h-24 bg-${colorName}-500 rounded`}></div>
+                                                <div className="bg-white py-2 px-3 rounded-b text-center">
+                                                    <p className="text-xs font-semibold text-gray-700 capitalize">{colorName}</p>
+                                                </div>
+                                            </button>
                                         ))}
                                     </div>
 
                                     {colorSaveStatus.message && (
-                                        <div className={`mt-4 p-3 rounded-lg text-sm ${
-                                            colorSaveStatus.message.includes('Error') 
-                                                ? 'bg-red-50 text-red-700 border border-red-200' 
-                                                : 'bg-green-50 text-green-700 border border-green-200'
+                                        <div className={`mt-6 p-3 rounded-lg text-sm ${
+                                            colorSaveStatus.message.includes('✅') 
+                                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                                : 'bg-red-50 text-red-700 border border-red-200'
                                         }`}>
                                             {colorSaveStatus.message}
                                         </div>
                                     )}
                                 </div>
-                            </div>
 
-                            {/* Idioma */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Idioma del Sistema</h3>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {[
-                                        { code: 'es', name: 'Español', flag: '🇪🇪', active: true },
-                                        { code: 'en', name: 'English', flag: '🇺🇸' },
-                                        { code: 'fr', name: 'Français', flag: '🇫🇷' },
-                                        { code: 'pt', name: 'Português', flag: '🇵🇹' }
-                                    ].map((lang) => (
-                                        <button
-                                            key={lang.code}
-                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                                                lang.active 
-                                                    ? 'border-green-500 bg-green-50 text-green-800' 
-                                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <span className="text-2xl">{lang.flag}</span>
-                                            <span className="font-medium">{lang.name}</span>
-                                            {lang.active && <span className="ml-auto text-green-600">✓</span>}
-                                        </button>
-                                    ))}
+                                {/* Vista previa de la barra de navegación */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-3">Vista Previa de Navegación</label>
+                                    <div id="color-preview-bar" className="w-full h-16 rounded-lg shadow-md transition-all duration-300 border border-gray-200" style={{backgroundColor: `rgb(${colorMap[previewColor]?.[600] || colorMap.green[600]})`}}></div>
+                                    <p className="text-xs text-gray-500 mt-3">Esta barra de color se aplicará a la navegación principal del sistema</p>
                                 </div>
-                            </div>
-
-                            {/* Botones de acción */}
-                            <div className="flex gap-4">
-                                <button
-                                    onClick={handleGuardarPersonalizacion}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-                                >
-                                    Aplicar Cambios
-                                </button>
-                                <button
-                                    onClick={handleVistaPrevia}
-                                    className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-                                >
-                                    Vista Previa
-                                </button>
                             </div>
                         </div>
                     )}
 
-                    {/* Sección Seguridad */}
+                    {/* Sección Seguridad y Contraseñas */}
                     {activeSection === 'seguridad' && (
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800 mb-2">Seguridad y Contraseñas</h2>
                             <p className="text-gray-600 mb-8">Configura las políticas de seguridad del sistema</p>
                             
-                            {/* Estado de seguridad */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Estado de Seguridad</h3>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                            <Shield className="w-4 h-4 text-white" />
+                            {/* Estado de Seguridad */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                {/* Contraseñas Seguras */}
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <CheckCircle className="w-6 h-6 text-white" />
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-green-800">Contraseñas Seguras</p>
-                                            <p className="text-xs text-green-600">Activo</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                                        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                                            <Shield className="w-4 h-4 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-yellow-800">Autenticación 2FA</p>
-                                            <p className="text-xs text-yellow-600">Opcional</p>
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold text-gray-800">Contraseñas Seguras</h3>
+                                            <p className="text-sm text-green-700 mt-1">Activo</p>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
-                                        <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                                            <Shield className="w-4 h-4 text-white" />
+                                {/* Autenticación 2FA */}
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <AlertTriangle className="w-6 h-6 text-white" />
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-red-800">Bloqueo Automático</p>
-                                            <p className="text-xs text-red-600">Inactivo</p>
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold text-gray-800">Autenticación 2FA</h3>
+                                            <p className="text-sm text-yellow-700 mt-1">Opcional</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bloqueo Automático */}
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <Shield className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold text-gray-800">Bloqueo Automático</h3>
+                                            <p className="text-sm text-red-700 mt-1">Inactivo</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Políticas de contraseña */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Políticas de Contraseña</h3>
+                            {/* Políticas de Contraseña */}
+                            <div className="bg-white rounded-lg p-8 border border-gray-200">
+                                <h3 className="text-xl font-semibold text-gray-800 mb-8">Políticas de Contraseña</h3>
                                 
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
+                                <div className="space-y-6">
+                                    {/* Longitud mínima */}
+                                    <div className="flex items-center justify-between pb-6 border-b border-gray-100">
                                         <div>
                                             <label className="text-sm font-medium text-gray-700">Longitud mínima</label>
-                                            <p className="text-xs text-gray-500">Número mínimo de caracteres</p>
+                                            <p className="text-xs text-gray-500 mt-1">Número mínimo de caracteres</p>
                                         </div>
                                         <select
-                                            className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                             value={securityConfig.min_length}
-                                            onChange={(e) => setSecurityConfig({ ...securityConfig, min_length: e.target.value })}
+                                            onChange={(e) => setSecurityConfig({...securityConfig, min_length: e.target.value})}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
                                         >
                                             <option value="6">6</option>
                                             <option value="8">8</option>
                                             <option value="10">10</option>
                                             <option value="12">12</option>
+                                            <option value="16">16</option>
                                         </select>
                                     </div>
 
-                                    <div className="flex items-center justify-between">
+                                    {/* Incluir mayúsculas */}
+                                    <div className="flex items-center justify-between pb-6 border-b border-gray-100">
                                         <div>
                                             <label className="text-sm font-medium text-gray-700">Incluir mayúsculas</label>
-                                            <p className="text-xs text-gray-500">Al menos una letra mayúscula</p>
+                                            <p className="text-xs text-gray-500 mt-1">Al menos una letra mayúscula</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
-                                                className="sr-only peer"
                                                 checked={securityConfig.require_uppercase}
-                                                onChange={(e) => setSecurityConfig({ ...securityConfig, require_uppercase: e.target.checked })}
+                                                onChange={(e) => setSecurityConfig({...securityConfig, require_uppercase: e.target.checked})}
+                                                className="sr-only peer"
                                             />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                                         </label>
                                     </div>
 
-                                    <div className="flex items-center justify-between">
+                                    {/* Incluir números */}
+                                    <div className="flex items-center justify-between pb-6 border-b border-gray-100">
                                         <div>
                                             <label className="text-sm font-medium text-gray-700">Incluir números</label>
-                                            <p className="text-xs text-gray-500">Al menos un dígito</p>
+                                            <p className="text-xs text-gray-500 mt-1">Al menos un dígito</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
-                                                className="sr-only peer"
                                                 checked={securityConfig.require_numbers}
-                                                onChange={(e) => setSecurityConfig({ ...securityConfig, require_numbers: e.target.checked })}
+                                                onChange={(e) => setSecurityConfig({...securityConfig, require_numbers: e.target.checked})}
+                                                className="sr-only peer"
                                             />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                                         </label>
                                     </div>
 
-                                    <div className="flex items-center justify-between">
+                                    {/* Caracteres especiales */}
+                                    <div className="flex items-center justify-between pb-6 border-b border-gray-100">
                                         <div>
                                             <label className="text-sm font-medium text-gray-700">Caracteres especiales</label>
-                                            <p className="text-xs text-gray-500">Al menos un símbolo (!@#$%^&*)</p>
+                                            <p className="text-xs text-gray-500 mt-1">Al menos un símbolo (!@#$%&*)</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
-                                                className="sr-only peer"
                                                 checked={securityConfig.require_special}
-                                                onChange={(e) => setSecurityConfig({ ...securityConfig, require_special: e.target.checked })}
+                                                onChange={(e) => setSecurityConfig({...securityConfig, require_special: e.target.checked})}
+                                                className="sr-only peer"
                                             />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                                         </label>
                                     </div>
 
+                                    {/* Expiración de contraseña */}
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <label className="text-sm font-medium text-gray-700">Expiración de contraseña</label>
-                                            <p className="text-xs text-gray-500">Días antes de cambio obligatorio</p>
+                                            <p className="text-xs text-gray-500 mt-1">Días antes de cambio obligatorio</p>
                                         </div>
                                         <select
-                                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                             value={securityConfig.expiration_days}
-                                            onChange={(e) => setSecurityConfig({ ...securityConfig, expiration_days: e.target.value })}
+                                            onChange={(e) => setSecurityConfig({...securityConfig, expiration_days: e.target.value})}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
                                         >
                                             <option value="30">30 días</option>
                                             <option value="60">60 días</option>
                                             <option value="90">90 días</option>
-                                            <option value="0">Nunca</option>
+                                            <option value="180">180 días</option>
+                                            <option value="365">365 días</option>
+                                            <option value="0">Sin expiración</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 {/* Botones de acción */}
-                                <div className="flex gap-4 mt-8">
+                                <div className="flex gap-4 mt-8 pt-8 border-t border-gray-100">
                                     <button
                                         onClick={handleGuardarSeguridad}
-                                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg"
+                                        disabled={securityStatus.loading}
+                                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-3 px-8 rounded-lg transition-colors"
                                     >
-                                        Guardar Políticas
+                                        {securityStatus.loading ? 'Guardando...' : 'Guardar Políticas'}
                                     </button>
                                     <button
-                                        onClick={cancelar}
-                                        className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg"
+                                        onClick={() => window.location.reload()}
+                                        className="bg-gray-700 hover:bg-gray-800 text-white font-medium py-3 px-8 rounded-lg transition-colors"
                                     >
                                         Cancelar
                                     </button>
                                 </div>
+
+                                {/* Mensaje de estado */}
+                                {securityStatus.message && (
+                                    <div className={`mt-6 p-4 rounded-lg text-sm ${
+                                        securityStatus.message.includes('✅') 
+                                            ? 'bg-green-50 text-green-700 border border-green-200'
+                                            : 'bg-red-50 text-red-700 border border-red-200'
+                                    }`}>
+                                        {securityStatus.message}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1485,98 +1735,232 @@ export default function Configuraciones() {
                     {activeSection === 'respaldo' && (
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800 mb-2">Respaldo y Restauración</h2>
-                            <p className="text-gray-600 mb-8">Gestiona las copias de seguridad de la base de datos</p>
+                            <p className="text-gray-600 mb-8">Administra copias de seguridad de la base de datos</p>
                             
-                            {/* Estado de respaldos */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Respaldar Base de Datos</h3>
-                                
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                        <div>
-                                            <p className="font-medium text-blue-900">Último respaldo</p>
-                                            <p className="text-sm text-blue-700">26 de noviembre de 2025 - 10:30 AM</p>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                {/* Crear Respaldo */}
+                                <div className="bg-white rounded-lg p-6 border border-gray-200">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <Download className="w-5 h-5 text-green-600" />
                                         </div>
-                                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                            Ver Detalles
-                                        </button>
+                                        <h3 className="text-lg font-semibold text-gray-800">Crear Respaldo</h3>
                                     </div>
+                                    
+                                    <p className="text-sm text-gray-600 mb-6">
+                                        Crea una copia de seguridad completa de toda la base de datos del sistema
+                                    </p>
+                                    
+                                    <button
+                                        onClick={handleCrearRespaldo}
+                                        disabled={backupStatus.loading}
+                                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                    >
+                                        <Download size={18} />
+                                        {backupStatus.loading ? 'Creando respaldo...' : 'Descargar Respaldo'}
+                                    </button>
 
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-700">Respaldo automático</label>
-                                            <p className="text-xs text-gray-500">Crear respaldos automáticamente</p>
+                                    {backupStatus.message && (
+                                        <div className={`mt-4 p-3 rounded-lg text-sm ${
+                                            backupStatus.message.includes('✅') 
+                                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                                : 'bg-red-50 text-red-700 border border-red-200'
+                                        }`}>
+                                            {backupStatus.message}
                                         </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" defaultChecked />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                    )}
+                                </div>
+
+                                {/* Restaurar Respaldo */}
+                                <div className="bg-white rounded-lg p-6 border border-gray-200">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <Upload className="w-5 h-5 text-blue-600" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold text-gray-800">Restaurar Respaldo</h3>
+                                    </div>
+                                    
+                                    <p className="text-sm text-gray-600 mb-6">
+                                        Restaura la base de datos desde un archivo de respaldo anterior
+                                    </p>
+                                    
+                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors"
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.currentTarget.classList.add('bg-blue-50', 'border-blue-400');
+                                        }}
+                                        onDragLeave={(e) => {
+                                            e.currentTarget.classList.remove('bg-blue-50', 'border-blue-400');
+                                        }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            e.currentTarget.classList.remove('bg-blue-50', 'border-blue-400');
+                                            const file = e.dataTransfer.files[0];
+                                            if (file) setUploadFile(file);
+                                        }}
+                                    >
+                                        <input
+                                            type="file"
+                                            accept=".sql,.zip,.tar.gz"
+                                            onChange={(e) => setUploadFile(e.target.files?.[0])}
+                                            className="hidden"
+                                            id="backup-upload"
+                                        />
+                                        <label htmlFor="backup-upload" className="cursor-pointer block">
+                                            <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                                            <p className="text-sm font-medium text-gray-900">Arrastra un archivo o haz clic</p>
+                                            <p className="text-xs text-gray-500">SQL, ZIP o TAR.GZ (máx. 500MB)</p>
                                         </label>
                                     </div>
 
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-700">Frecuencia</label>
-                                            <p className="text-xs text-gray-500">Cada cuánto tiempo realizar respaldos</p>
+                                    {uploadFile && (
+                                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <p className="text-sm text-blue-700 font-medium">
+                                                📄 {uploadFile.name}
+                                            </p>
+                                            <p className="text-xs text-blue-600 mt-1">
+                                                Tamaño: {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                                            </p>
                                         </div>
-                                        <select className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                                            <option value="daily">Diariamente</option>
-                                            <option value="weekly" defaultValue>Semanalmente</option>
-                                            <option value="monthly">Mensualmente</option>
-                                        </select>
-                                    </div>
-                                </div>
+                                    )}
 
-                                <div className="flex gap-4 mt-8">
                                     <button
-                                        onClick={handleCrearRespaldo}
-                                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg"
+                                        onClick={handleStartRestore}
+                                        disabled={!uploadFile || isUploading}
+                                        className="w-full mt-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors"
                                     >
-                                        Crear Respaldo Ahora
-                                    </button>
-                                    <button
-                                        onClick={() => handleDescargarRespaldo('ultimo-respaldo')}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
-                                    >
-                                        Descargar Último Respaldo
+                                        <Upload size={18} />
+                                        {isUploading ? 'Restaurando...' : 'Restaurar Base de Datos'}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Historial de respaldos */}
-                            <div className="bg-white rounded-lg p-6 border border-gray-200">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Historial de Respaldos</h3>
+                            {/* Lista de respaldos disponibles */}
+                            <div className="bg-white rounded-lg border border-gray-200 mt-8">
+                                <div className="px-6 py-4 border-b border-gray-200">
+                                    <h3 className="text-lg font-semibold text-gray-900">Respaldos Disponibles</h3>
+                                </div>
                                 
-                                <div className="space-y-2">
-                                    {[
-                                        { date: '26/11/2025 10:30 AM', size: '45.2 MB', status: 'Completado' },
-                                        { date: '25/11/2025 10:30 AM', size: '44.8 MB', status: 'Completado' },
-                                        { date: '24/11/2025 10:30 AM', size: '44.5 MB', status: 'Completado' },
-                                        { date: '23/11/2025 10:30 AM', size: '43.9 MB', status: 'Completado' },
-                                    ].map((backup, index) => (
-                                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                            <div>
-                                                <p className="font-medium text-gray-900">{backup.date}</p>
-                                                <p className="text-sm text-gray-600">Tamaño: {backup.size}</p>
+                                <div className="overflow-x-auto">
+                                    {backupFiles && backupFiles.length > 0 ? (
+                                        <table className="w-full">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Archivo
+                                                    </th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Tamaño
+                                                    </th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Fecha de Creación
+                                                    </th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Acciones
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {backupFiles.map((backup, index) => (
+                                                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-3">
+                                                                <HardDrive className="w-5 h-5 text-gray-400" />
+                                                                <span className="text-sm font-medium text-gray-900">{backup.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className="text-sm text-gray-900 font-medium">
+                                                                {backup.size_formatted || formatFileSize(backup.size)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                                            {backup.date_formatted}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => handleDescargarRespaldo(backup.name)}
+                                                                    className="inline-flex items-center gap-1 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-medium transition-colors"
+                                                                    title="Descargar este respaldo"
+                                                                >
+                                                                    <Download size={14} />
+                                                                    Descargar
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (confirm(`¿Está seguro de eliminar el respaldo ${backup.name}?`)) {
+                                                                            handleEliminarRespaldo(backup.name);
+                                                                        }
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1 px-4 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-medium transition-colors"
+                                                                    title="Eliminar este respaldo"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                    Eliminar
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : (
+                                        <div className="text-center py-16">
+                                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <HardDrive className="w-8 h-8 text-gray-400" />
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                                    {backup.status}
-                                                </span>
-                                                <button
-                                                    onClick={() => handleDescargarRespaldo(backup.date)}
-                                                    className="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                >
-                                                    Descargar
-                                                </button>
-                                            </div>
+                                            <h3 className="text-sm font-medium text-gray-900 mb-2">No hay respaldos disponibles</h3>
+                                            <p className="text-sm text-gray-500 mb-6">
+                                                Crea el primer respaldo haciendo clic en el botón "Descargar Respaldo"
+                                            </p>
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </div>
                         </div>
                     )}
                 </main>
             </div>
+
+            {/* Modal de contraseña para restauración */}
+            {showPasswordModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Confirmar Restauración</h3>
+                        <p className="text-sm text-gray-600 mb-6">Por favor ingresa tu contraseña para confirmar la restauración de la base de datos.</p>
+                        
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+                            <input
+                                type="password"
+                                value={restorePassword}
+                                onChange={handlePasswordChange}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            />
+                            {restorePasswordError && (
+                                <p className="text-sm text-red-600 mt-2">{restorePasswordError}</p>
+                            )}
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handleConfirmRestore}
+                                disabled={isRestoringWithPassword}
+                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+                            >
+                                {isRestoringWithPassword ? 'Restaurando...' : 'Confirmar'}
+                            </button>
+                            <button
+                                onClick={() => setShowPasswordModal(false)}
+                                className="bg-gray-700 hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </SidebarLayout>
     );
 }

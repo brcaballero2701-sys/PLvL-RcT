@@ -427,7 +427,11 @@ export default function Personalizacion({ settings = {} }) {
                                             <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium text-white ${getCurrentColor().class}`}>
                                                 Etiqueta
                                             </span>
-                                            <button type="button" className={`px-4 py-2 ${getCurrentColor().class} text-white rounded-lg hover:opacity-90 transition-opacity font-medium`}>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => alert(`Color seleccionado: ${getCurrentColor().label}`)}
+                                                className={`px-4 py-2 ${getCurrentColor().class} text-white rounded-lg hover:opacity-90 transition-opacity font-medium`}
+                                            >
                                                 Botón Principal
                                             </button>
                                             <div className={`w-12 h-12 ${getCurrentColor().class} rounded-lg shadow-md`}></div>
