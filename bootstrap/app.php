@@ -33,21 +33,48 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
 
-        // Dejar que Laravel maneje las excepciones de validación normalmente
+        // Manejador mejorado para excepciones AJAX y API
         $exceptions->render(function (Throwable $e, $request) {
-            // Si es una excepción de validación, dejar que Laravel la maneje
-            if ($e instanceof \Illuminate\Validation\ValidationException) {
-                return null; // Permitir que el manejador predeterminado la procese
+            // Para solicitudes AJAX/JSON, siempre devolver JSON
+            if ($request->expectsJson() || $request->isXmlHttpRequest()) {
+                // Log del error para debugging
+                error_log("=== AJAX EXCEPTION ===");
+                error_log($e->__toString());
+
+                // Determinar el código HTTP
+                $status = 500;
+                if ($e instanceof \Illuminate\Validation\ValidationException) {
+                    $status = 422;
+                } elseif ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+                    $status = $e->getStatusCode();
+                } elseif ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                    $status = 404;
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ ' . ($e->getMessage() ?: 'Error al procesar la solicitud'),
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                    'trace' => config('app.debug') ? $e->getTraceAsString() : null
+                ], $status);
             }
 
-            // Para otras excepciones, mostrar el error en desarrollo
-            error_log("=== LARAVEL EXCEPTION (Render Free) ===");
-            error_log($e->__toString());
+            // Para otras solicitudes, mostrar error HTML en desarrollo
+            if (config('app.debug')) {
+                error_log("=== LARAVEL EXCEPTION ===");
+                error_log($e->__toString());
 
+                return response(
+                    "<pre style='white-space:pre-wrap;font-size:14px'>"
+                    . htmlspecialchars($e->__toString())
+                    . "</pre>",
+                    500
+                );
+            }
+
+            // En producción, devolver error genérico
             return response(
-                "<pre style='white-space:pre-wrap;font-size:14px'>"
-                . htmlspecialchars($e->__toString())
-                . "</pre>",
+                "Se produjo un error al procesar su solicitud. Por favor, intente más tarde.",
                 500
             );
         });

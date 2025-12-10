@@ -610,7 +610,7 @@ export default function Configuraciones() {
     // Función para confirmar restauración con contraseña
     const handleConfirmRestore = async () => {
         if (!uploadFile) {
-            alert('Por favor selecciona un archivo');
+            setRestorePasswordError('Por favor selecciona un archivo');
             return;
         }
 
@@ -625,8 +625,30 @@ export default function Configuraciones() {
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             
-            // Primero validar la contraseña
-            const validateResponse = await fetch(route('admin.backup.confirm-restore'), {
+            // Paso 1: Subir el archivo
+            const uploadFormData = new FormData();
+            uploadFormData.append('backup_file', uploadFile);
+
+            const uploadResponse = await fetch(route('admin.backup.upload'), {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: uploadFormData
+            });
+
+            const uploadResult = await uploadResponse.json();
+
+            if (!uploadResponse.ok || !uploadResult.success) {
+                setRestorePasswordError(uploadResult.message || 'Error al subir el archivo');
+                setIsRestoringWithPassword(false);
+                return;
+            }
+
+            const uploadedFilename = uploadResult.filename;
+
+            // Paso 2: Restaurar el archivo con contraseña
+            const restoreResponse = await fetch(route('admin.backup.restore'), {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
@@ -634,28 +656,9 @@ export default function Configuraciones() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    filename: uploadedFilename,
                     password: restorePassword
                 })
-            });
-
-            const validateResult = await validateResponse.json();
-
-            if (!validateResponse.ok || !validateResult.success) {
-                setRestorePasswordError(validateResult.message || 'Contraseña incorrecta');
-                setIsRestoringWithPassword(false);
-                return;
-            }
-
-            // Si la contraseña es válida, proceder con la restauración
-            const formData = new FormData();
-            formData.append('backup', uploadFile);
-
-            const restoreResponse = await fetch(route('admin.backup.restore'), {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                },
-                body: formData
             });
 
             const restoreResult = await restoreResponse.json();
@@ -665,7 +668,17 @@ export default function Configuraciones() {
                 setRestorePassword('');
                 setUploadFile(null);
                 alert('✅ Base de datos restaurada exitosamente');
-                setTimeout(() => window.location.reload(), 2000);
+                
+                // Esperar un segundo y luego redirigir al login
+                setTimeout(() => {
+                    // Redirigir al login usando la URL del servidor
+                    if (restoreResult.redirect) {
+                        window.location.href = restoreResult.redirect;
+                    } else {
+                        // Fallback a la ruta de login
+                        window.location.href = route('login');
+                    }
+                }, 1500);
             } else {
                 setRestorePasswordError(restoreResult.message || 'Error al restaurar');
                 setIsRestoringWithPassword(false);

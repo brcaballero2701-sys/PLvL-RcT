@@ -216,12 +216,12 @@ class ConfigurationController extends Controller
     // ========== PERSONALIZACIÓN ==========
     public function uploadLogo(Request $request)
     {
-        $request->validate([
-            'logo' => 'required|image|mimes:jpeg,png,jpg,svg,webp|max:2048'
-        ]);
+        try {
+            $request->validate([
+                'logo' => 'required|image|mimes:jpeg,png,jpg,svg,webp|max:2048'
+            ]);
 
-        if ($request->hasFile('logo')) {
-            try {
+            if ($request->hasFile('logo')) {
                 // Eliminar logo anterior si existe
                 $oldLogo = SystemSetting::getSetting('logo_path');
                 if ($oldLogo && Storage::exists($oldLogo)) {
@@ -235,18 +235,25 @@ class ConfigurationController extends Controller
                     'message' => 'Logo actualizado correctamente',
                     'logo_path' => $path
                 ]);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error al subir el logo: ' . $e->getMessage()
-                ], 500);
             }
-        }
 
-        return response()->json([
-            'success' => false,
-            'message' => 'No se pudo subir el logo'
-        ], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo subir el logo'
+            ], 400);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error de validación: ' . implode(', ', array_merge(...array_values($e->errors()))),
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error al subir logo', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al subir el logo: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function resetLogo(Request $request)
@@ -265,39 +272,82 @@ class ConfigurationController extends Controller
                 'logo_path' => '/images/sena-logo.png'
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error al restablecer logo', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error al restablecer el logo: ' . $e->getMessage()
+                'message' => '❌ Error al restablecer el logo: ' . $e->getMessage()
             ], 500);
         }
     }
 
     public function updateCustomization(Request $request)
     {
-        $validated = $request->validate([
-            'color_scheme' => 'required|string',
-            'language' => 'required|in:es,en,fr,pt',
-        ]);
+        try {
+            $validated = $request->validate([
+                'color_scheme' => 'required|string',
+                'language' => 'required|in:es,en,fr,pt',
+            ]);
 
-        SystemSetting::setSetting('color_scheme', $validated['color_scheme'], 'string', 'Esquema de colores del sistema');
-        SystemSetting::setSetting('language', $validated['language'], 'string', 'Idioma del sistema');
+            SystemSetting::setSetting('color_scheme', $validated['color_scheme'], 'string', 'Esquema de colores del sistema');
+            SystemSetting::setSetting('language', $validated['language'], 'string', 'Idioma del sistema');
 
-        return redirect()->back()->with('success', 'Personalización actualizada correctamente');
+            // Si es solicitud AJAX, devolver JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Personalización actualizada correctamente'
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Personalización actualizada correctamente');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ Error de validación',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            return redirect()->back()->withErrors($e->errors());
+        } catch (\Exception $e) {
+            \Log::error('Error al actualizar personalización', ['error' => $e->getMessage()]);
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '❌ Error: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+        }
     }
 
     public function updateColor(Request $request)
     {
-        $validated = $request->validate([
-            'primary_color' => 'required|string|in:green,blue,indigo,purple,red,orange,yellow,teal,cyan,gray,slate,stone',
-        ]);
+        try {
+            $validated = $request->validate([
+                'primary_color' => 'required|string|in:green,blue,indigo,purple,red,orange,yellow,teal,cyan,gray,slate,stone',
+            ]);
 
-        SystemSetting::setSetting('primary_color', $validated['primary_color'], 'string', 'Color primario del sistema');
+            SystemSetting::setSetting('primary_color', $validated['primary_color'], 'string', 'Color primario del sistema');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Color guardado exitosamente',
-            'color' => $validated['primary_color']
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Color guardado exitosamente',
+                'color' => $validated['primary_color']
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error al actualizar color', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al guardar el color: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // ========== SEGURIDAD Y CONTRASEÑAS ==========
@@ -842,27 +892,62 @@ class ConfigurationController extends Controller
     public function subirYRestaurar(Request $request)
     {
         try {
-            $request->validate([
-                'backup_file' => 'required|file|mimes:sql|max:102400' // 100MB max
+            // Validación más flexible - solo verificar que sea un archivo
+            $validated = $request->validate([
+                'backup_file' => 'required|file|max:102400' // 100MB max, sin restricción de extensión
             ]);
 
             $path = storage_path('app/backups');
+            
+            // Crear directorio si no existe
             if (!is_dir($path)) {
                 mkdir($path, 0755, true);
             }
 
-            $filename = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
-            $request->file('backup_file')->move($path, $filename);
+            // Obtener el archivo
+            $file = $request->file('backup_file');
+            
+            // Generar nombre único para el archivo preservando extensión
+            $extension = $file->getClientOriginalExtension();
+            $filename = 'backup_' . date('Y-m-d_H-i-s') . ($extension ? '.' . $extension : '.sql');
+            
+            // Mover el archivo al directorio de respaldos
+            $file->move($path, $filename);
+
+            // Verificar que el archivo se subió correctamente
+            $fullPath = $path . '/' . $filename;
+            if (!file_exists($fullPath)) {
+                throw new \Exception('El archivo no se guardó correctamente en el servidor');
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => '✅ Archivo de respaldo subido correctamente',
-                'filename' => $filename
+                'filename' => $filename,
+                'size' => filesize($fullPath),
+                'path' => $path
+            ], 200);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validación fallida en subirYRestaurar', [
+                'errors' => $e->errors(),
+                'request_file' => $request->hasFile('backup_file') ? 'Sí' : 'No'
             ]);
-        } catch (\Exception $e) {
+            
             return response()->json([
                 'success' => false,
-                'message' => '❌ Error: ' . $e->getMessage()
+                'message' => '❌ Error de validación: ' . implode(', ', array_merge(...array_values($e->errors()))),
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error al subir respaldo', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file_exists' => isset($file) ? 'Verificar logs' : 'No hay archivo'
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => '❌ Error al subir el archivo: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -935,9 +1020,27 @@ class ConfigurationController extends Controller
                 }
             }
 
+            // Después de restaurar exitosamente, limpiar sesiones y cache
+            try {
+                // Limpiar sesiones
+                \Illuminate\Support\Facades\Artisan::call('session:table');
+                \Illuminate\Support\Facades\DB::table('sessions')->delete();
+            } catch (\Exception $e) {
+                \Log::warning('No se pudo limpiar sesiones después de restauración', ['error' => $e->getMessage()]);
+            }
+
+            // Limpiar cache
+            try {
+                \Illuminate\Support\Facades\Artisan::call('cache:clear');
+                \Illuminate\Support\Facades\Cache::flush();
+            } catch (\Exception $e) {
+                \Log::warning('No se pudo limpiar cache después de restauración', ['error' => $e->getMessage()]);
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => '✅ Base de datos restaurada correctamente'
+                'message' => '✅ Base de datos restaurada correctamente. Serás redirigido al login.',
+                'redirect' => route('login') // Redirigir al login
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -946,6 +1049,11 @@ class ConfigurationController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Error durante la restauración', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => '❌ Error durante la restauración: ' . $e->getMessage()
