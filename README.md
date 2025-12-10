@@ -94,15 +94,8 @@ php artisan serve
 - **Permisos**: Gestión completa del sistema
 
 ### Guardias de Seguridad
-- **Guardia 1**: guardia1@seguridad.com / guardia123
-- **Guardia 2**: guardia2@seguridad.com / guardia123
+- **Guardia 1**: guardia@sena.edu.co / 12345678
 - **Permisos**: Registro de asistencia de instructores
-
-### Instructores de Prueba
-- **Carlos Rodríguez** - Código: 1234567890123 (Matemáticas)
-- **Ana López** - Código: 2345678901234 (Ciencias)
-- **José Martínez** - Código: 3456789012345 (Tecnología)
-- **Lucía González** - Código: 4567890123456 (Idiomas)
 
 ## 🎯 Funcionalidades por Rol
 
@@ -319,7 +312,7 @@ Este proyecto está bajo la Licencia MIT.
 - Acceso a gestión de instructores y usuarios
 
 **Para probar como Guardia:**
-- Email: guardia1@seguridad.com / Contraseña: guardia123
+- Email: guardia1@sena.edu.co / Contraseña: 12345678
 - Simular registro con códigos: 1234567890123, 2345678901234, etc.
 
 **¡El sistema está completamente funcional y listo para usar! 🎉**

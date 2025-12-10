@@ -27,6 +27,7 @@
         "lodash": "^4.17.21",
         "lucide-react": "^0.553.0",
         "pusher-js": "^8.4.0",
-        "recharts": "^3.3.0"
+        "recharts": "^3.3.0",
+        "xlsx": "^0.18.5"
     }
 }
