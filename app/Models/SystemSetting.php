@@ -78,8 +78,34 @@ class SystemSetting extends Model
      */
     public static function uploadLogo($file)
     {
-        $path = $file->store('logos', 'public');
-        static::setSetting('logo_path', '/storage/' . $path, 'string', 'Ruta del logo institucional');
-        return '/storage/' . $path;
+        try {
+            // Crear directorio si no existe
+            $logoDir = public_path('images/logos');
+            if (!is_dir($logoDir)) {
+                mkdir($logoDir, 0755, true);
+            }
+
+            // Generar nombre único para el archivo
+            $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($logoDir, $filename);
+
+            // Eliminar logo anterior si existe
+            $oldLogoPath = static::getSetting('logo_path');
+            if ($oldLogoPath && strpos($oldLogoPath, '/images/logos/') !== false) {
+                $oldFile = public_path($oldLogoPath);
+                if (file_exists($oldFile)) {
+                    unlink($oldFile);
+                }
+            }
+
+            // Guardar nueva ruta
+            $newPath = '/images/logos/' . $filename;
+            static::setSetting('logo_path', $newPath, 'string', 'Ruta del logo institucional');
+            
+            return $newPath;
+        } catch (\Exception $e) {
+            \Log::error('Error al subir logo', ['error' => $e->getMessage()]);
+            throw $e;
+        }
     }
 }
