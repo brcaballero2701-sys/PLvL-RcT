@@ -287,8 +287,10 @@ export default function SidebarLayout({ title, children, header }) {
                 )}
 
                 {/* Contenido */}
-                <main className="flex-1 overflow-y-auto bg-gray-50">
-                    {children}
+                <main className="flex-1 overflow-y-auto bg-gray-50 flex justify-center items-start">
+                    <div className="w-4/5 max-w-full">
+                        {children}
+                    </div>
                 </main>
             </div>
 
