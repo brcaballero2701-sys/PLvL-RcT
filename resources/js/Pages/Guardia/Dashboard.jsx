@@ -383,9 +383,9 @@ export default function GuardiaDashboard({ auth, instructores = [], registros = 
                                         onChange={(e) => setFormPortatil({...formPortatil, tipo: e.target.value})}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
                                     >
-                                        <option value="profesor">👨‍🏫 Profesor</option>
+                                        <option value="profesor">👨‍🏫 Instructor</option>
                                         <option value="aprendiz">👨‍🎓 Aprendiz</option>
-                                        <option value="estructura">🏢 Estructura</option>
+                                        <option value="estructura">🏢 Visitante</option>
                                     </select>
                                 </div>
 
@@ -519,9 +519,9 @@ export default function GuardiaDashboard({ auth, instructores = [], registros = 
                                                         registro.tipo === 'aprendiz' ? 'bg-green-100 text-green-800' :
                                                         'bg-orange-100 text-orange-800'
                                                     }`}>
-                                                        {registro.tipo === 'profesor' ? '👨‍🏫 Profesor' :
+                                                        {registro.tipo === 'profesor' ? '👨‍🏫 Instructor' :
                                                          registro.tipo === 'aprendiz' ? '👨‍🎓 Aprendiz' :
-                                                         '🏢 Estructura'}
+                                                         '🏢 Visitante'}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-gray-700">
