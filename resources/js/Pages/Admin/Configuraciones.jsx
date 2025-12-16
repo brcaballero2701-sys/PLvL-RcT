@@ -144,7 +144,8 @@ export default function Configuraciones() {
             const result = await response.json();
             if (response.ok && result.success) {
                 setColorSaveStatus({ loading: false, message: '✅ Color guardado exitosamente' });
-                setTimeout(() => setColorSaveStatus({ loading: false, message: '' }), 2000);
+                // Recargar la página automáticamente después de 1.5 segundos
+                setTimeout(() => window.location.reload(), 1500);
             } else {
                 setColorSaveStatus({ loading: false, message: `❌ ${result.message || 'Error al guardar'}` });
             }

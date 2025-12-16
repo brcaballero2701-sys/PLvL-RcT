@@ -222,12 +222,7 @@ class ConfigurationController extends Controller
             ]);
 
             if ($request->hasFile('logo')) {
-                // Eliminar logo anterior si existe
-                $oldLogo = SystemSetting::getSetting('logo_path');
-                if ($oldLogo && Storage::exists($oldLogo)) {
-                    Storage::delete($oldLogo);
-                }
-
+                // Usar el método de SystemSetting que ya maneja todo correctamente
                 $path = SystemSetting::uploadLogo($request->file('logo'));
                 
                 return response()->json([
@@ -248,7 +243,7 @@ class ConfigurationController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Error al subir logo', ['error' => $e->getMessage()]);
+            \Log::error('Error al subir logo', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => '❌ Error al subir el logo: ' . $e->getMessage()
@@ -259,9 +254,12 @@ class ConfigurationController extends Controller
     public function resetLogo(Request $request)
     {
         try {
-            $oldLogo = SystemSetting::getSetting('logo_path');
-            if ($oldLogo && Storage::exists($oldLogo)) {
-                Storage::delete($oldLogo);
+            $oldLogoPath = SystemSetting::getSetting('logo_path');
+            if ($oldLogoPath && strpos($oldLogoPath, '/images/logos/') !== false) {
+                $oldFile = public_path($oldLogoPath);
+                if (file_exists($oldFile)) {
+                    unlink($oldFile);
+                }
             }
 
             SystemSetting::setSetting('logo_path', '/images/sena-logo.png', 'string', 'Logo por defecto');
