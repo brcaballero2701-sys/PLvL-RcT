@@ -908,7 +908,7 @@ class AdminController extends Controller
                 'name' => $validated['nombre_completo'],
                 'email' => $validated['correo_electronico'],
                 'password' => bcrypt($validated['password']),
-                'role' => 'vigilante',
+                'role' => 'guardia',
                 'cedula' => $validated['codigo_vigilante'],
                 'telefono' => $validated['telefono'],
                 'ubicacion_asignada' => $validated['ubicacion_asignada'],
@@ -918,7 +918,7 @@ class AdminController extends Controller
             ]);
 
             return redirect()->route('admin.vigilantes.create')
-                ->with('success', 'Vigilante registrado exitosamente');
+                ->with('success', 'Guardia registrado exitosamente');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
