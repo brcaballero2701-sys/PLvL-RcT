@@ -108,18 +108,18 @@ export default function GuardiaDashboard({ auth, instructores = [], registros = 
         <SidebarLayout
             title="Historial de Instructores - SENA"
             header={
-                <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-gray-800">Historial de instructores</h1>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Historial de instructores</h1>
                     
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 w-full md:w-auto">
                         <button 
                             onClick={abrirModalPuertas}
-                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2 rounded-lg font-medium transition-colors text-sm md:text-base"
                         >
                             Puertas
                         </button>
 
-                        <div className="text-sm text-gray-600">
+                        <div className="text-xs md:text-sm text-gray-600">
                             Vigilante activo: <span className="font-medium">{auth.user.name}</span>
                         </div>
                     </div>
@@ -128,10 +128,10 @@ export default function GuardiaDashboard({ auth, instructores = [], registros = 
         >
             {/* Notificaciones dinámicas */}
             {notificacionesActivas.length > 0 && (
-                <div className="p-6 pb-0">
+                <div className="p-4 md:p-6 pb-0">
                     <div className="flex flex-col gap-2 max-w-md">
                         {notificacionesActivas.map((notificacion) => (
-                            <div key={notificacion.id} className={`px-4 py-2 rounded-lg text-sm text-white flex items-center justify-between ${
+                            <div key={notificacion.id} className={`px-4 py-2 rounded-lg text-xs md:text-sm text-white flex items-center justify-between ${
                                 notificacion.tipo === 'tarde' ? 'bg-yellow-600' :
                                 notificacion.tipo === 'ausencia' ? 'bg-red-600' :
                                 notificacion.tipo === 'entrada' ? 'bg-green-600' :
@@ -150,9 +150,9 @@ export default function GuardiaDashboard({ auth, instructores = [], registros = 
                 </div>
             )}
 
-            <div className="p-8">
+            <div className="p-4 md:p-8">
                 {/* Tarjetas de estadísticas */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8">
                     <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-600">
                         <div className="flex items-center justify-between">
                             <div>
