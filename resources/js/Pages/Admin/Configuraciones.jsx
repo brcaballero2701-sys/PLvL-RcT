@@ -820,87 +820,87 @@ export default function Configuraciones() {
                 </div>
             }
         >
-            <div className="flex gap-0">
+            <div className="flex gap-0 flex-col md:flex-row">
                 {/* Sidebar de opciones - SECUNDARIO */}
-                <aside className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto shadow-lg">
+                <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-gray-200 p-4 overflow-y-auto shadow-lg md:shadow-none">
                     <h3 className="text-gray-700 text-sm font-bold uppercase tracking-widest mb-6 px-3">Opciones de Configuración</h3>
-                    <nav className="space-y-2">
+                    <nav className="space-y-2 grid grid-cols-2 md:grid-cols-1 gap-2 md:gap-0">
                         <button
                             onClick={() => setActiveSection('horarios')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm md:text-base ${
                                 activeSection === 'horarios' 
                                     ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
                                     : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Clock size={20} />
-                            <span className="text-sm">Horarios y Asistencias</span>
+                            <Clock size={18} className="flex-shrink-0" />
+                            <span className="text-xs md:text-sm">Horarios</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('usuarios')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm md:text-base ${
                                 activeSection === 'usuarios' 
                                     ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
                                     : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Users size={20} />
-                            <span className="text-sm">Usuarios y Roles</span>
+                            <Users size={18} className="flex-shrink-0" />
+                            <span className="text-xs md:text-sm">Usuarios</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('mensajes')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm md:text-base ${
                                 activeSection === 'mensajes' 
                                     ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
                                     : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <MessageSquare size={20} />
-                            <span className="text-sm">Mensajes flash / Notificaciones</span>
+                            <MessageSquare size={18} className="flex-shrink-0" />
+                            <span className="text-xs md:text-sm">Notificaciones</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('personalizacion')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm md:text-base ${
                                 activeSection === 'personalizacion' 
                                     ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
                                     : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Image size={20} />
-                            <span className="text-sm">Personalización del Sistema</span>
+                            <Image size={18} className="flex-shrink-0" />
+                            <span className="text-xs md:text-sm">Personalización</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('seguridad')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm md:text-base ${
                                 activeSection === 'seguridad' 
                                     ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
                                     : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Shield size={20} />
-                            <span className="text-sm">Seguridad y Contraseñas</span>
+                            <Shield size={18} className="flex-shrink-0" />
+                            <span className="text-xs md:text-sm">Seguridad</span>
                         </button>
 
                         <button
                             onClick={() => setActiveSection('respaldo')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm md:text-base ${
                                 activeSection === 'respaldo' 
                                     ? 'bg-green-700 text-white font-semibold shadow-lg border-l-4 border-green-700' 
                                     : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                             }`}
                         >
-                            <Database size={20} />
-                            <span className="text-sm">Respaldo y Restauración</span>
+                            <Database size={18} className="flex-shrink-0" />
+                            <span className="text-xs md:text-sm">Respaldo</span>
                         </button>
                     </nav>
                 </aside>
 
                 {/* Contenido principal */}
-                <main className="flex-1 p-8 overflow-y-auto">
+                <main className="flex-1 p-4 md:p-8 overflow-y-auto">
                     {/* Sección Horarios y Asistencias */}
                     {activeSection === 'horarios' && (
                         <div>
