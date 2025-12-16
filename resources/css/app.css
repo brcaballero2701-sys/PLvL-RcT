@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Importar fuente Zurich BT */
+@font-face {
+    font-family: 'Zurich BT';
+    src: url('/fonts/zurichbt.ttf') format('truetype'),
+         url('/fonts/zurichbt.woff') format('woff'),
+         url('/fonts/zurichbt.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Zurich BT';
+    src: url('/fonts/zurichbt-bold.ttf') format('truetype'),
+         url('/fonts/zurichbt-bold.woff') format('woff'),
+         url('/fonts/zurichbt-bold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+}
+
+/* Clase personalizada para Zurich BT */
+.font-zurich {
+    font-family: 'Zurich BT', sans-serif;
+}

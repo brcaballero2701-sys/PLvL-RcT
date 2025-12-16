@@ -49,7 +49,7 @@ export default function Login({ status, canResetPassword }) {
             <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
                 {/* Logo del SENA - Solo texto */}
                 <div className="text-center mb-8">
-                    <h1 className="text-5xl font-bold text-green-600 tracking-wider">SENA</h1>
+                    <h1 className="text-5xl font-bold text-green-600 tracking-wider font-zurich">SENA</h1>
                 </div>
 
                 {/* Mensaje de estado si existe */}
