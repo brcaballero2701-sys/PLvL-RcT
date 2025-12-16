@@ -179,7 +179,8 @@ export default function Configuraciones() {
                 setCurrentLogoPath(result.logo_path || `/images/logo.png`);
                 setLogoTimestamp(Date.now());
                 setUploadStatus({ loading: false, message: '✅ Logo subido exitosamente' });
-                setTimeout(() => setUploadStatus({ loading: false, message: '' }), 2000);
+                // Recargar la página automáticamente después de 1.5 segundos
+                setTimeout(() => window.location.reload(), 1500);
             } else {
                 setUploadStatus({ loading: false, message: `❌ ${result.message || 'Error al subir'}` });
             }

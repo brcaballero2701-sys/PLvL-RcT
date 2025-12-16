@@ -18,7 +18,7 @@ export default {
             colors: {
                 'sena': {
                     'claro': '#22C55E',
-                    'oficial': '#16A34A', 
+                    'oficial': '#39A900',  // Verde oficial actualizado
                     'oscuro': '#15803D',
                     'intenso': '#166534',
                 },
