@@ -1,4 +1,5 @@
-# Sistema de Registro de Instructores - Laravel + React
+# Sistema de Registro de Instructores - Laravel + React 
+Caballero
 
 Un sistema completo de registro y control de asistencia de instructores diseñado para guardias de seguridad, construido con **Laravel 12** como backend y **React** con **Inertia.js** como frontend.
 
